@@ -3,6 +3,7 @@ package Influx
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -74,20 +75,128 @@ func parsePoint(line string) {
 
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
 
-	measurement := ArrayShift(measurementAndTags)
+	measurement := ArrayShift(&measurementAndTags)
 	// measurement
+
 	// 	$measurementAndTags = explode(',', $measurementAndTagsStr);
 	// 	$measurement = array_shift($measurementAndTags);
-	// 	$measurement = preg_replace("/$ESCAPEDSPACE/", ' ', $measurement);
-	// 	$measurement = preg_replace("/$ESCAPEDCOMMA/", ',', $measurement);
-	// 	$measurement = preg_replace("/$ESCAPEDEQUAL/", '=', $measurement); // MODIFICATION
-	// 	$tagsStr = $measurementAndTags;
+
+	r := regexp.MustCompile("/$ESCAPEDSPACE/")
+	measurement = r.ReplaceAllString(measurement, " ")
+
+	r = regexp.MustCompile("/$ESCAPEDCOMMA/")
+	measurement = r.ReplaceAllString(measurement, ",")
+
+	r = regexp.MustCompile("/$ESCAPEDEQUAL/")
+	measurement = r.ReplaceAllString(measurement, "=")
+
+	tagsStr := measurementAndTags
+
+	var tagSet []string
+
+	for _, tagStr := range tagsStr {
+
+		r = regexp.MustCompile("/$ESCAPEDSPACE/")
+		tagStr = r.ReplaceAllString(tagStr, " ")
+
+		r = regexp.MustCompile("/$ESCAPEDCOMMA/")
+		tagStr = r.ReplaceAllString(tagStr, ",")
+
+		r = regexp.MustCompile("/$ESCAPEDDBLQUOTE/")
+		tagStr = r.ReplaceAllString(tagStr, "\"")
+
+		tagKV := strings.Split(tagStr, "=")
+
+		if len(tagKV) == 2 {
+			tagKey := tagKV[0]
+			tagValue := tagKV[1]
+
+			r = regexp.MustCompile("/$ESCAPEDEQUAL/")
+			tagStr = r.ReplaceAllString(tagKey, "=")
+
+			tagStr = r.ReplaceAllString(tagValue, "=")
+
+			k, _ := strconv.ParseInt(tagKey, 0, 64)
+			tagSet[k] = tagValue
+		}
+
+	}
+
+	// cut out quoted strings and replace them with placeholders (will be inserted back in later)
+
+	var strs []string
+
+	if strings.Index(fieldSetStr, `"`) != 0 { // check this again!!
+		cnt := 0
+		rs := regexp.MustCompile(`/"(.*?)"/`)
+		fieldSetStr = rs.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
+			strs[0] = matches
+			cnt = cnt + 1
+			return `___ESCAPEDSTRING_` + strconv.Itoa(cnt) + `___`
+		})
+	}
+
+	fieldSetArray := strings.Split(fieldSetStr, ",")
+	// var fieldSet []string
+
+	for _, fieldStr := range fieldSetArray {
+		rf := regexp.MustCompile("/$ESCAPEDSPACE/")
+		fieldStr = rf.ReplaceAllString(fieldStr, " ")
+
+		rf = regexp.MustCompile("/$ESCAPEDCOMMA/")
+		fieldStr = rf.ReplaceAllString(fieldStr, ",")
+
+		fieldKV := strings.Split(fieldStr, "=")
+
+		if len(fieldKV) == 2 {
+			key := fieldKV[0]
+			var value interface{}
+			value = fieldKV[1]
+
+			// insert previously cut out quoted strings again
+
+			rf = regexp.MustCompile(`/___ESCAPEDSTRING_(\d+)___/`)
+			fieldSetStr = rf.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
+				// return strs[matches]
+				return ""
+			})
+
+			rf = regexp.MustCompile("/$ESCAPEDEQUAL/")
+			key = rf.ReplaceAllString(key, "=")
+			value = r.ReplaceAllString(value.(string), "=")
+
+			rf = regexp.MustCompile("/$ESCAPEDDBLQUOTE/")
+			value = r.ReplaceAllString(value.(string), "\"")
+
+			rf = regexp.MustCompile("/$ESCAPEDBACKSLASH/")
+			value = r.ReplaceAllString(value.(string), "\\")
+			key = r.ReplaceAllString(key, "\\")
+
+			// TODO: handle booleans
+
+			// Try to convert the string to a float
+			rf = regexp.MustCompile(`/(\d+)[ui]/`)
+
+			if _, err := strconv.Atoi(value.(string)); err == nil {
+				floatVal, _ := strconv.ParseFloat(value.(string), 64)
+				value = floatVal
+			} else if rf.MatchString(value.(string)) {
+				m := rf.FindAllString(value.(string), 1)
+				v, _ := strconv.ParseInt(m[1], 0, 64)
+				value = v
+			}
+
+			k, _ := strconv.ParseInt(key, 0, 64)
+			tagSet[k] = value.(string) // check this again!!
+		}
+	}
 
 }
 
-func ArrayShift(s *[]interface{}) interface{} {
+func ArrayShift(s *[]string) string {
 	if len(*s) == 0 {
-		return nil
+		// return nil
+		return ""
 	}
 	f := (*s)[0]
 	*s = (*s)[1:]
