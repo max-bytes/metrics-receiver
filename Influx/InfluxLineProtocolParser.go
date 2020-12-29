@@ -1,4 +1,4 @@
-package Influx
+package main
 
 import (
 	"fmt"
@@ -9,25 +9,48 @@ import (
 
 func main() {
 	fmt.Println("Hello, World!")
-	parse("")
-}
 
-func parse(input string) {
 	t := []string{
 		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
 		"weather,location=us-midwest temperature=82",                     // no timestamp
 		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
+	parse(strings.Join(t, "\n"))
+}
 
-	var lines = strings.Split(strings.Join(t, "\n"), "\n")
-	fmt.Println(lines)
+func parse(input string) []Point {
+
+	// var tlines = strings.Split(strings.Join(t, "\n"), "\n")
+	// fmt.Println(tlines)
+
+	// for _, line := range tlines {
+	// 	fmt.Println("Line: ", line)
+	// }
+
+	lines := strings.Split(input, "\n")
+	var ret []Point
 
 	for _, line := range lines {
-		fmt.Println("Line: ", line)
+		if line == " " {
+			continue
+		}
+
+		if string(line[0]) == "#" {
+			continue
+		}
+
+		point := parsePoint(line)
+
+		// if point != (Point{}) {
+
+		// }
+		ret = append(ret, point)
 	}
+
+	return ret
 }
 
 // func parsePoint(line string) Point {
-func parsePoint(line string) {
+func parsePoint(line string) Point {
 	const ESCAPEDSPACE = "___ESCAPEDSPACE___"
 	const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
 	const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
@@ -73,6 +96,7 @@ func parsePoint(line string) {
 		// return nil
 	}
 
+	fmt.Println(timestamp)
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
 
 	measurement := ArrayShift(&measurementAndTags)
@@ -137,7 +161,7 @@ func parsePoint(line string) {
 	}
 
 	fieldSetArray := strings.Split(fieldSetStr, ",")
-	// var fieldSet []string
+	var fieldSet []string
 
 	for _, fieldStr := range fieldSetArray {
 		rf := regexp.MustCompile("/$ESCAPEDSPACE/")
@@ -187,10 +211,11 @@ func parsePoint(line string) {
 			}
 
 			k, _ := strconv.ParseInt(key, 0, 64)
-			tagSet[k] = value.(string) // check this again!!
+			fieldSet[k] = value.(string) // check this again!!
 		}
 	}
 
+	return Point{measurement, fieldSet, tagSet, timestamp}
 }
 
 func ArrayShift(s *[]string) string {
