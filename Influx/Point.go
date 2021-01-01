@@ -1,10 +1,10 @@
-package main
+package Influx
 
 type Point struct {
 	// check types of these variables
 	measurement string
-	fields      []string
-	tags        []string
+	fields      []interface{}
+	tags        []interface{}
 	timestamp   string
 }
 

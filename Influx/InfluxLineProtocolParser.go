@@ -1,4 +1,4 @@
-package main
+package Influx
 
 import (
 	"fmt"
@@ -7,24 +7,18 @@ import (
 	"strings"
 )
 
-func main() {
-	fmt.Println("Hello, World!")
+// func main() {
+// 	fmt.Println("Hello, World!")
 
-	t := []string{
-		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-		"weather,location=us-midwest temperature=82",                     // no timestamp
-		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
-	parse(strings.Join(t, "\n"))
-}
+// 	t := []string{
+// 		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
+// 		"weather,location=us-midwest temperature=82",                     // no timestamp
+// 		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
+
+// 	parse(strings.Join(t, "\n"))
+// }
 
 func parse(input string) []Point {
-
-	// var tlines = strings.Split(strings.Join(t, "\n"), "\n")
-	// fmt.Println(tlines)
-
-	// for _, line := range tlines {
-	// 	fmt.Println("Line: ", line)
-	// }
 
 	lines := strings.Split(input, "\n")
 	var ret []Point
@@ -105,13 +99,13 @@ func parsePoint(line string) Point {
 	// 	$measurementAndTags = explode(',', $measurementAndTagsStr);
 	// 	$measurement = array_shift($measurementAndTags);
 
-	r := regexp.MustCompile("/$ESCAPEDSPACE/")
+	r := regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDSPACE))
 	measurement = r.ReplaceAllString(measurement, " ")
 
-	r = regexp.MustCompile("/$ESCAPEDCOMMA/")
+	r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDCOMMA))
 	measurement = r.ReplaceAllString(measurement, ",")
 
-	r = regexp.MustCompile("/$ESCAPEDEQUAL/")
+	r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDEQUAL))
 	measurement = r.ReplaceAllString(measurement, "=")
 
 	tagsStr := measurementAndTags
@@ -120,13 +114,14 @@ func parsePoint(line string) Point {
 
 	for _, tagStr := range tagsStr {
 
-		r = regexp.MustCompile("/$ESCAPEDSPACE/")
+		r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDSPACE))
 		tagStr = r.ReplaceAllString(tagStr, " ")
 
+		r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDCOMMA))
 		r = regexp.MustCompile("/$ESCAPEDCOMMA/")
 		tagStr = r.ReplaceAllString(tagStr, ",")
 
-		r = regexp.MustCompile("/$ESCAPEDDBLQUOTE/")
+		r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDDBLQUOTE))
 		tagStr = r.ReplaceAllString(tagStr, "\"")
 
 		tagKV := strings.Split(tagStr, "=")
@@ -135,7 +130,7 @@ func parsePoint(line string) Point {
 			tagKey := tagKV[0]
 			tagValue := tagKV[1]
 
-			r = regexp.MustCompile("/$ESCAPEDEQUAL/")
+			r = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDEQUAL))
 			tagStr = r.ReplaceAllString(tagKey, "=")
 
 			tagStr = r.ReplaceAllString(tagValue, "=")
@@ -164,10 +159,11 @@ func parsePoint(line string) Point {
 	var fieldSet []string
 
 	for _, fieldStr := range fieldSetArray {
-		rf := regexp.MustCompile("/$ESCAPEDSPACE/")
+
+		rf := regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDSPACE))
 		fieldStr = rf.ReplaceAllString(fieldStr, " ")
 
-		rf = regexp.MustCompile("/$ESCAPEDCOMMA/")
+		rf = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDCOMMA))
 		fieldStr = rf.ReplaceAllString(fieldStr, ",")
 
 		fieldKV := strings.Split(fieldStr, "=")
@@ -185,14 +181,14 @@ func parsePoint(line string) Point {
 				return ""
 			})
 
-			rf = regexp.MustCompile("/$ESCAPEDEQUAL/")
+			rf = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDEQUAL))
 			key = rf.ReplaceAllString(key, "=")
 			value = r.ReplaceAllString(value.(string), "=")
 
-			rf = regexp.MustCompile("/$ESCAPEDDBLQUOTE/")
+			rf = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDDBLQUOTE))
 			value = r.ReplaceAllString(value.(string), "\"")
 
-			rf = regexp.MustCompile("/$ESCAPEDBACKSLASH/")
+			rf = regexp.MustCompile(fmt.Sprintf("/%v/", ESCAPEDBACKSLASH))
 			value = r.ReplaceAllString(value.(string), "\\")
 			key = r.ReplaceAllString(key, "\\")
 
