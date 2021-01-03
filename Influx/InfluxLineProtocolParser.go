@@ -15,6 +15,10 @@ func main() {
 		"weather,location=us-midwest temperature=82",                     // no timestamp
 		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
 
+	// t := []string{
+	// 	"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
+	// 	"\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
+	// }
 	res := parse(strings.Join(t, "\n"))
 
 	fmt.Printf(fmt.Sprintf("%#v", res))
@@ -68,37 +72,48 @@ func parsePoint(line string) Point {
 	re = regexp.MustCompile("/\\\\\\\\/")
 	line = re.ReplaceAllString(line, ESCAPEDBACKSLASH)
 
-	r1 := regexp.MustCompile("/^(.*?) (.*) (.*)$/")
-	r2 := regexp.MustCompile("/^(.*?) (.*)$/")
+	r1 := regexp.MustCompile("^(.*?) (.*) (.*)$")
+	r2 := regexp.MustCompile("^(.*?) (.*)$")
 	// r1_match, _ :=
 	// r2_match, _ := regexp.MatchString("/^(.*?) (.*)$/", line)
 
 	measurementAndTagsStr := ""
 	fieldSetStr := ""
 	timestamp := ""
-	var t = r1.MatchString(line)
-	var t1 = r2.MatchString(line)
-	var t2 = r2.FindString(line)
 
-	fmt.Println(t)
-	fmt.Println(t1)
-	fmt.Println(t2)
 	if r1.MatchString(line) {
-		tokens := r1.FindAllString(line, 1)
-		measurementAndTagsStr = tokens[1]
-		fieldSetStr = tokens[2]
-		timestamp = tokens[3]
+		tokens := r1.FindStringSubmatch(line)
+
+		if len(tokens) > 1 {
+			measurementAndTagsStr = tokens[1]
+		}
+
+		if len(tokens) > 2 {
+			fieldSetStr = tokens[2]
+		}
+
+		if len(tokens) > 3 {
+			timestamp = tokens[3]
+		}
 	} else if r2.MatchString(line) {
-		tokens := r2.FindAllString(line, 1)
-		measurementAndTagsStr = tokens[1]
-		fieldSetStr = tokens[2]
-		timestamp = tokens[3]
+		tokens := r2.FindStringSubmatch(line)
+
+		if len(tokens) > 1 {
+			measurementAndTagsStr = tokens[1]
+		}
+
+		if len(tokens) > 2 {
+			fieldSetStr = tokens[2]
+		}
+
+		if len(tokens) > 3 {
+			timestamp = tokens[3]
+		}
 	} else {
 		// invalid number of tokens
 		// return nil
 	}
 
-	fmt.Println(timestamp)
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
 
 	measurement := ArrayShift(&measurementAndTags)
@@ -155,7 +170,7 @@ func parsePoint(line string) Point {
 
 	if strings.Index(fieldSetStr, `"`) != 0 { // check this again!!
 		cnt := 0
-		rs := regexp.MustCompile(`/"(.*?)"/`)
+		rs := regexp.MustCompile(`/"(.*?)"/`) /// maybe remove / from pattern ??
 		fieldSetStr = rs.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
 			strs[0] = matches
 			cnt = cnt + 1
@@ -208,14 +223,16 @@ func parsePoint(line string) Point {
 			if _, err := strconv.Atoi(value.(string)); err == nil {
 				floatVal, _ := strconv.ParseFloat(value.(string), 64)
 				value = floatVal
+				fieldSet[key] = value.(float64)
 			} else if rf.MatchString(value.(string)) {
 				m := rf.FindAllString(value.(string), 1)
 				v, _ := strconv.ParseInt(m[1], 0, 64)
 				value = v
+				fieldSet[key] = value.(string)
 			}
 
 			// k, _ := strconv.ParseInt(key, 0, 64)
-			fieldSet[key] = value.(string) // check this again!!
+			// fieldSet[key] = value.(string) // check this again!!
 		}
 	}
 
