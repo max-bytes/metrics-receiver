@@ -63,14 +63,16 @@ func parsePoint(line string) Point {
 	re = regexp.MustCompile("\\\\,")
 	line = re.ReplaceAllString(line, ESCAPEDCOMMA)
 
-	re = regexp.MustCompile("\\\\=")
+	re = regexp.MustCompile(`\\\=`)
 	line = re.ReplaceAllString(line, ESCAPEDEQUAL) // MODIFICATION
 
-	re = regexp.MustCompile(`\\\\"`) // added a \ beffore " here  !!!
+	re = regexp.MustCompile(`\\\"`) // added a \ beffore " here  !!!
 	line = re.ReplaceAllString(line, ESCAPEDDBLQUOTE)
 
 	re = regexp.MustCompile("\\\\\\\\")
 	line = re.ReplaceAllString(line, ESCAPEDBACKSLASH)
+
+	fmt.Println(line)
 
 	r1 := regexp.MustCompile("^(.*?) (.*) (.*)$")
 	r2 := regexp.MustCompile("^(.*?) (.*)$")
