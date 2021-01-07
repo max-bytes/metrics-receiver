@@ -17,11 +17,12 @@ func main() {
 
 	t := []string{
 		"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
-		"\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
+		// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
 	}
-	res := parse(strings.Join(t, "\n"))
+	// res := parse(strings.Join(t, "\n"))
+	parse(strings.Join(t, "\n"))
 
-	fmt.Printf(fmt.Sprintf("%#v", res))
+	// fmt.Printf(fmt.Sprintf("%#v", res))
 }
 
 func parse(input string) []Point {
@@ -66,18 +67,14 @@ func parsePoint(line string) Point {
 	re = regexp.MustCompile(`\\\=`)
 	line = re.ReplaceAllString(line, ESCAPEDEQUAL) // MODIFICATION
 
-	re = regexp.MustCompile(`\\\"`) // added a \ beffore " here  !!!
+	re = regexp.MustCompile(`\\\"`)
 	line = re.ReplaceAllString(line, ESCAPEDDBLQUOTE)
 
 	re = regexp.MustCompile("\\\\\\\\")
 	line = re.ReplaceAllString(line, ESCAPEDBACKSLASH)
 
-	fmt.Println(line)
-
 	r1 := regexp.MustCompile("^(.*?) (.*) (.*)$")
 	r2 := regexp.MustCompile("^(.*?) (.*)$")
-	// r1_match, _ :=
-	// r2_match, _ := regexp.MatchString("/^(.*?) (.*)$/", line)
 
 	measurementAndTagsStr := ""
 	fieldSetStr := ""
@@ -119,10 +116,6 @@ func parsePoint(line string) Point {
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
 
 	measurement := ArrayShift(&measurementAndTags)
-	// measurement
-
-	// 	$measurementAndTags = explode(',', $measurementAndTagsStr);
-	// 	$measurement = array_shift($measurementAndTags);
 
 	r := regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDSPACE))
 	measurement = r.ReplaceAllString(measurement, " ")
@@ -143,7 +136,6 @@ func parsePoint(line string) Point {
 		tagStr = r.ReplaceAllString(tagStr, " ")
 
 		r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDCOMMA))
-		// r = regexp.MustCompile("/$ESCAPEDCOMMA/")
 		tagStr = r.ReplaceAllString(tagStr, ",")
 
 		r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
@@ -160,7 +152,6 @@ func parsePoint(line string) Point {
 
 			tagStr = r.ReplaceAllString(tagValue, "=")
 
-			// k, _ := strconv.ParseInt(tagKey, 0, 64)
 			tagSet[tagKey] = tagValue
 		}
 
@@ -169,14 +160,14 @@ func parsePoint(line string) Point {
 	// cut out quoted strings and replace them with placeholders (will be inserted back in later)
 
 	var strs []string
-
-	if strings.Index(fieldSetStr, `"`) != 0 { // check this again!!
+	if strings.Index(fieldSetStr, `"`) != 0 {
 		cnt := 0
-		rs := regexp.MustCompile(`/"(.*?)/"`) /// maybe remove / from pattern ??
+		rs := regexp.MustCompile(`\"(.*?)\"`)
 		fieldSetStr = rs.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
-			strs[0] = matches
+			strs = append(strs, matches)
+			result := `___ESCAPEDSTRING_` + strconv.Itoa(cnt) + `___`
 			cnt = cnt + 1
-			return `___ESCAPEDSTRING_` + strconv.Itoa(cnt) + `___`
+			return result
 		})
 	}
 
@@ -201,21 +192,26 @@ func parsePoint(line string) Point {
 			// insert previously cut out quoted strings again
 
 			rf = regexp.MustCompile(`___ESCAPEDSTRING_(\d+)___`)
-			fieldSetStr = rf.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
-				// return strs[matches]
-				return ""
+			value = rf.ReplaceAllStringFunc(value.(string), func(matches string) string {
+				t := rf.FindStringSubmatch(value.(string))
+				index, _ := strconv.Atoi(t[1])
+				return strs[index]
 			})
 
 			rf = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDEQUAL))
 			key = rf.ReplaceAllString(key, "=")
-			value = r.ReplaceAllString(value.(string), "=")
+			value = rf.ReplaceAllString(value.(string), "=")
 
 			rf = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
-			value = r.ReplaceAllString(value.(string), "\"")
+			value = rf.ReplaceAllString(value.(string), "\"")
 
 			rf = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDBACKSLASH))
-			value = r.ReplaceAllString(value.(string), "\\")
-			key = r.ReplaceAllString(key, "\\")
+			value = rf.ReplaceAllString(value.(string), "\\")
+
+			key = rf.ReplaceAllString(key, "\\")
+
+			fmt.Println(key)
+			fmt.Println(value)
 
 			// TODO: handle booleans
 
@@ -228,8 +224,11 @@ func parsePoint(line string) Point {
 				fieldSet[key] = value.(float64)
 			} else if rf.MatchString(value.(string)) {
 				m := rf.FindAllString(value.(string), 1)
-				v, _ := strconv.ParseInt(m[1], 0, 64)
+				v, e := strconv.ParseInt(m[1], 0, 64)
+				fmt.Println(e)
 				value = v
+				fieldSet[key] = value.(int)
+			} else {
 				fieldSet[key] = value.(string)
 			}
 
@@ -249,4 +248,13 @@ func ArrayShift(s *[]string) string {
 	f := (*s)[0]
 	*s = (*s)[1:]
 	return f
+}
+
+func index(slice []string, item string) int {
+	for i, _ := range slice {
+		if slice[i] == item {
+			return i
+		}
+	}
+	return -1
 }
