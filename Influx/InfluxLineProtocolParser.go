@@ -15,15 +15,15 @@ func main() {
 	// 	"weather,location=us-midwest temperature=82",                     // no timestamp
 	// 	"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
 
-	t := []string{
-		"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
-		// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
-	}
-
 	// t := []string{
-	// 	"weat\\=her,location=us-midwest temperature_string=\"temp: hot\" 1465839830100400200",           // escaped "=" in measurement
-	// 	"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
+	// 	"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
+	// 	// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
 	// }
+
+	t := []string{
+		// "weat\\=her,location=us-midwest temperature_string=\"temp: hot\" 1465839830100400200",           // escaped "=" in measurement
+		"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
+	}
 
 	// res := parse(strings.Join(t, "\n"))
 	parse(strings.Join(t, "\n"))
@@ -154,9 +154,9 @@ func parsePoint(line string) Point {
 			tagValue := tagKV[1]
 
 			r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDEQUAL))
-			tagStr = r.ReplaceAllString(tagKey, "=")
+			tagKey = r.ReplaceAllString(tagKey, "=")
 
-			tagStr = r.ReplaceAllString(tagValue, "=")
+			tagValue = r.ReplaceAllString(tagValue, "=")
 
 			tagSet[tagKey] = tagValue
 		}
@@ -216,9 +216,6 @@ func parsePoint(line string) Point {
 			value = rf.ReplaceAllString(value.(string), "\\")
 
 			key = rf.ReplaceAllString(key, "\\")
-
-			// fmt.Println(key)
-			// fmt.Println(value)
 
 			// TODO: handle booleans
 
