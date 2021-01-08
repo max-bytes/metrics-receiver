@@ -19,6 +19,12 @@ func main() {
 		"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
 		// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
 	}
+
+	// t := []string{
+	// 	"weat\\=her,location=us-midwest temperature_string=\"temp: hot\" 1465839830100400200",           // escaped "=" in measurement
+	// 	"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
+	// }
+
 	// res := parse(strings.Join(t, "\n"))
 	parse(strings.Join(t, "\n"))
 
@@ -64,7 +70,7 @@ func parsePoint(line string) Point {
 	re = regexp.MustCompile("\\\\,")
 	line = re.ReplaceAllString(line, ESCAPEDCOMMA)
 
-	re = regexp.MustCompile(`\\\=`)
+	re = regexp.MustCompile(`\\=`)
 	line = re.ReplaceAllString(line, ESCAPEDEQUAL) // MODIFICATION
 
 	re = regexp.MustCompile(`\\\"`)
@@ -162,9 +168,10 @@ func parsePoint(line string) Point {
 	var strs []string
 	if strings.Index(fieldSetStr, `"`) != 0 {
 		cnt := 0
-		rs := regexp.MustCompile(`\"(.*?)\"`)
+		rs := regexp.MustCompile(`"(.*?)"`)
 		fieldSetStr = rs.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
-			strs = append(strs, matches)
+			t := rs.FindStringSubmatch(fieldSetStr)
+			strs = append(strs, t[1])
 			result := `___ESCAPEDSTRING_` + strconv.Itoa(cnt) + `___`
 			cnt = cnt + 1
 			return result
@@ -210,8 +217,8 @@ func parsePoint(line string) Point {
 
 			key = rf.ReplaceAllString(key, "\\")
 
-			fmt.Println(key)
-			fmt.Println(value)
+			// fmt.Println(key)
+			// fmt.Println(value)
 
 			// TODO: handle booleans
 
