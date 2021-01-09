@@ -56,7 +56,6 @@ func parse(input string) []Point {
 	return ret
 }
 
-// func parsePoint(line string) Point {
 func parsePoint(line string) Point {
 	const ESCAPEDSPACE = "___ESCAPEDSPACE___"
 	const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
@@ -235,9 +234,6 @@ func parsePoint(line string) Point {
 			} else {
 				fieldSet[key] = value.(string)
 			}
-
-			// k, _ := strconv.ParseInt(key, 0, 64)
-			// fieldSet[key] = value.(string) // check this again!!
 		}
 	}
 
