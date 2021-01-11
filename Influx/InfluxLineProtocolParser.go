@@ -1,37 +1,14 @@
-package main
+package InfluxLineProtocolParser
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func main() {
-	fmt.Println("Hello, World!")
-
-	t := []string{
-		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-		"weather,location=us-midwest temperature=82",                     // no timestamp
-		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
-
-	// t := []string{
-	// 	"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
-	// 	// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
-	// }
-
-	// t := []string{
-	// 	// "weat\\=her,location=us-midwest temperature_string=\"temp: hot\" 1465839830100400200",           // escaped "=" in measurement
-	// 	"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
-	// }
-
-	// res := parse(strings.Join(t, "\n"))
-	parse(strings.Join(t, "\n"))
-
-	// fmt.Printf(fmt.Sprintf("%#v", res))
-}
-
-func parse(input string) []Point {
+func Parse(input string) ([]Point, error) {
 
 	lines := strings.Split(input, "\n")
 	var ret []Point
@@ -45,18 +22,19 @@ func parse(input string) []Point {
 			continue
 		}
 
-		point := parsePoint(line)
+		point, error := ParsePoint(line)
 
-		// if point != (Point{}) {
+		if error != nil {
+			return nil, error
+		}
 
-		// }
 		ret = append(ret, point)
 	}
 
-	return ret
+	return ret, nil
 }
 
-func parsePoint(line string) Point {
+func ParsePoint(line string) (Point, error) {
 	const ESCAPEDSPACE = "___ESCAPEDSPACE___"
 	const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
 	const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
@@ -115,7 +93,7 @@ func parsePoint(line string) Point {
 		}
 	} else {
 		// invalid number of tokens
-		// return nil
+		return Point{}, errors.New("invalid number of tokens")
 	}
 
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
@@ -239,7 +217,7 @@ func parsePoint(line string) Point {
 		}
 	}
 
-	return Point{measurement, fieldSet, tagSet, timestamp}
+	return Point{measurement, fieldSet, tagSet, timestamp}, errors.New("empty name")
 }
 
 func ArrayShift(s *[]string) string {

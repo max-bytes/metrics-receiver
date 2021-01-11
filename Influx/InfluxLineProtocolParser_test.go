@@ -1,4 +1,4 @@
-package main
+package InfluxLineProtocolParser
 
 import (
 	"strings"
@@ -13,7 +13,7 @@ func TestBasicFunctionality(t *testing.T) {
 		"weather,location=us-midwest temperature=82",                     // no timestamp
 		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
 
-	actual := parse(strings.Join(lines, "\n"))
+	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
 		Point{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, "1465839830100400200"},
@@ -30,7 +30,7 @@ func TestEscaping1(t *testing.T) {
 		"\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
 	}
 
-	actual := parse(strings.Join(lines, "\n"))
+	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
 		Point{"weat,he r", map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, map[string]string{`loc"ation, `: `us mid"west`}, "1465839830100400200"},
@@ -46,7 +46,7 @@ func TestEscaping2(t *testing.T) {
 		"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
 	}
 
-	actual := parse(strings.Join(lines, "\n"))
+	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
 		Point{"weat=her", map[string]interface{}{`temperature_string`: `temp: hot`}, map[string]string{`location`: `us-midwest`}, "1465839830100400200"},
@@ -54,4 +54,8 @@ func TestEscaping2(t *testing.T) {
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
+}
+
+func TestIncorrectString(t *testing.T) {
+
 }
