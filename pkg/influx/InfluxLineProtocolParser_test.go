@@ -1,4 +1,4 @@
-package InfluxLineProtocolParser
+package influx
 
 import (
 	"strings"
@@ -57,5 +57,15 @@ func TestEscaping2(t *testing.T) {
 }
 
 func TestIncorrectString(t *testing.T) {
+	lines := []string{
+		"assafasfasfasfafa",
+	}
 
+	_, err := Parse(strings.Join(lines, "\n"))
+
+	// error should not be nil here
+	if err == nil {
+		t.Log("Error should not be nil")
+		t.Fail()
+	}
 }

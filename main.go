@@ -1,9 +1,10 @@
 package main
 
 import (
-	"InfluxLineProtocolParser"
 	"fmt"
 	"strings"
+
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 	// }
 
 	// res := parse(strings.Join(t, "\n"))
-	InfluxLineProtocolParser.Parse(strings.Join(t, "\n"))
+	influx.Parse(strings.Join(t, "\n"))
 
 	// fmt.Printf(fmt.Sprintf("%#v", res))
 }

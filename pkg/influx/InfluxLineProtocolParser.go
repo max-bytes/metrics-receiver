@@ -1,4 +1,4 @@
-package InfluxLineProtocolParser
+package influx
 
 import (
 	"errors"
@@ -217,7 +217,7 @@ func ParsePoint(line string) (Point, error) {
 		}
 	}
 
-	return Point{measurement, fieldSet, tagSet, timestamp}, errors.New("empty name")
+	return Point{measurement, fieldSet, tagSet, timestamp}, nil
 }
 
 func ArrayShift(s *[]string) string {

@@ -1,4 +1,4 @@
-package InfluxLineProtocolParser
+package influx
 
 type Point struct {
 	// check types of these variables
