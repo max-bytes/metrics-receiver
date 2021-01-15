@@ -2,31 +2,31 @@ package main
 
 import (
 	"fmt"
-	"strings"
-
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
+	"log"
+	"net/http"
 )
 
 func main() {
-	fmt.Println("Hello, World!")
+	http.HandleFunc("/hello", helloHandler)
 
-	t := []string{
-		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-		"weather,location=us-midwest temperature=82",                     // no timestamp
-		"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
+	fmt.Printf("Starting server at port 8080\n")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
 
-	// t := []string{
-	// 	"weat\\,he\\ r,loc\\\"ation\\,\\ =us\\ mid\\\"west temperature=82,temperature_string=\"hot, really \\\"hot\\\"!\" 1465839830100400200", // all kinds of crazy characters
-	// 	// "\"weather\",\"location\"=\"us-midwest\" \"temperature\"=82 1465839830100400200",                                                       // needlessly quoting of measurement, tag-keys, tag-values and field keys
-	// }
+}
 
-	// t := []string{
-	// 	// "weat\\=her,location=us-midwest temperature_string=\"temp: hot\" 1465839830100400200",           // escaped "=" in measurement
-	// 	"weat\\=her,loc\\=ation=us-mi\\=dwest temp\\=erature_string=\"temp\\=hot\" 1465839830100400201", // escaped "=" everywhere
-	// }
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.URL.Path)
+	if r.URL.Path != "/hello" {
+		http.Error(w, "404 not found.", http.StatusNotFound)
+		return
+	}
 
-	// res := parse(strings.Join(t, "\n"))
-	influx.Parse(strings.Join(t, "\n"))
+	if r.Method != "GET" {
+		http.Error(w, "Method is not supported.", http.StatusNotFound)
+		return
+	}
 
-	// fmt.Printf(fmt.Sprintf("%#v", res))
+	fmt.Fprintf(w, "Hello!")
 }
