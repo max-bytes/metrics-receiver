@@ -2,11 +2,11 @@ package influx
 
 type Point struct {
 	// check types of these variables
-	measurement string
-	fields      map[string]interface{}
-	tags        map[string]string
-	// timestamp   *time.Time // change this should not be a string
-	timestamp string // change this should not be a string
+	Measurement string
+	Fields      map[string]interface{}
+	Tags        map[string]string
+	// Timestamp   *time.Time // change this should not be a string
+	Timestamp string // change this should not be a string
 }
 
 // type Point struct {
