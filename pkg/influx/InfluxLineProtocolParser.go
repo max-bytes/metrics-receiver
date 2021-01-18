@@ -10,6 +10,8 @@ import (
 
 func Parse(input string) ([]Point, error) {
 
+	input = strings.ReplaceAll(input, "\r", "")
+
 	lines := strings.Split(input, "\n")
 	var ret []Point
 
@@ -109,6 +111,9 @@ func ParsePoint(line string) (Point, error) {
 	r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDEQUAL))
 	measurement = r.ReplaceAllString(measurement, "=")
 
+	r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
+	measurement = r.ReplaceAllString(measurement, "\"")
+
 	tagsStr := measurementAndTags
 
 	tagSet := make(map[string]string)
@@ -123,6 +128,9 @@ func ParsePoint(line string) (Point, error) {
 
 		r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
 		tagStr = r.ReplaceAllString(tagStr, "\"")
+
+		r = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDBACKSLASH))
+		tagStr = r.ReplaceAllString(tagStr, "\\")
 
 		tagKV := strings.Split(tagStr, "=")
 
@@ -187,6 +195,7 @@ func ParsePoint(line string) (Point, error) {
 			value = rf.ReplaceAllString(value.(string), "=")
 
 			rf = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
+			key = rf.ReplaceAllString(key, "\"")
 			value = rf.ReplaceAllString(value.(string), "\"")
 
 			rf = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDBACKSLASH))

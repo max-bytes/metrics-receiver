@@ -35,23 +35,18 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	buf, err := ioutil.ReadAll(r.Body)
+
 	if err != nil {
 		log.Fatal("request", err)
 	}
-	// fmt.Println(string(buf))
 
 	requestStr := string(buf)
 
-	// t := []string{
-	// 	"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-	// 	"weather,location=us-midwest temperature=82",                     // no timestamp
-	// 	"weather2,location=us-midwest,source=test-source temperature=82i,foo=12.3,bar=-1202.23 1465839830100400201"}
-
-	// influx.Parse(strings.Join(t, "\n"))
 	res, _ := influx.Parse(requestStr)
 	resJson, err := json.Marshal(res)
 	if err != nil {
-		panic(err)
+		http.Error(w, "Error on parsing the provieded file!", http.StatusNotFound)
+		return
 	}
 
 	//Set Content-Type header so that clients will know how to read response
