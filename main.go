@@ -6,11 +6,39 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
+	flag "github.com/spf13/pflag"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
 )
 
+var (
+	version    = "0.0.0-src"
+	configFile = flag.String("config", "config.json", "Config file location")
+)
+
 func main() {
+
+	flag.Parse()
+	file, err := os.Open(*configFile)
+	if err != nil {
+		log.Fatal("can't open config file: ", err)
+	}
+	defer file.Close()
+
+	// decoder := json.NewDecoder(file)
+	var Config Configuration
+	// err = decoder.Decode(&Config)
+	// if err != nil {
+	// 	log.Fatal("can't decode config JSON: ", err)
+	// }
+
+	byteValue, _ := ioutil.ReadAll(file)
+	json.Unmarshal(byteValue, &Config)
+	log.Println(Config.timescaleConnectionString)
+
+	var result map[string]interface{}
+	json.Unmarshal([]byte(byteValue), &result)
 
 	http.HandleFunc("/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/influx/v1/query", influxWriteHandler)
@@ -72,3 +100,49 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not authorized", 401)
 	return
 }
+
+type Configuration struct {
+	timescaleConnectionString string `json:"timescaleConnectionString"`
+}
+
+// json config file
+// "measurements": [
+//     {
+//         "value": [
+//             {
+//                 "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
+//                 "tagsAsColumns": ["host", "service", "label", "uom"],
+//                 "targetTable": "metric"
+//             }
+//         ],
+//         "rabbitmq_exchange": [
+//             {
+//                 "addedTags": [
+//                     {
+//                         "measurement": "exchange"
+//                     }
+//                 ],
+//                 "fieldsAsColumns": [],
+//                 "tagsAsColumns": [],
+//                 "targetTable": "rabbitmq"
+//             }
+//         ],
+//         "rabbitmq_queue": [
+//             {
+//                 "addedTags": [
+//                     {
+//                         "measurement": "queue"
+//                     }
+//                 ],
+//                 "fieldsAsColumns": [],
+//                 "tagsAsColumns": [],
+//                 "targetTable": "rabbitmq"
+//             }
+//         ],
+//         "rabbitmq_node": [
+//             {
+//                 "ignore": true
+//             }
+//         ]
+//     }
+// ]

@@ -1,0 +1,4 @@
+{
+    "timescaleConnectionString": "host=localhost port=5432 dbname=metrics user=postgres password=postgres"
+    
+}
