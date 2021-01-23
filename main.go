@@ -26,19 +26,11 @@ func main() {
 	}
 	defer file.Close()
 
-	// decoder := json.NewDecoder(file)
 	var Config Configuration
-	// err = decoder.Decode(&Config)
-	// if err != nil {
-	// 	log.Fatal("can't decode config JSON: ", err)
-	// }
 
 	byteValue, _ := ioutil.ReadAll(file)
 	json.Unmarshal(byteValue, &Config)
-	log.Println(Config.timescaleConnectionString)
-
-	var result map[string]interface{}
-	json.Unmarshal([]byte(byteValue), &result)
+	log.Println(Config.TimescaleConnectionString)
 
 	http.HandleFunc("/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/influx/v1/query", influxWriteHandler)
@@ -102,7 +94,43 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Configuration struct {
-	timescaleConnectionString string `json:"timescaleConnectionString"`
+	TimescaleConnectionString string        `json:"timescaleConnectionString"`
+	Measurements              []Measurement `json:"measurements"`
+}
+
+type Measurement struct {
+	Value            []Value            `json:"value"`
+	RabbitmqExchange []RabbitmqExchange `json:"rabbitmq_exchange"`
+	RabbitmqQueue    []RabbitmqQueue    `json:"rabbitmq_queue"`
+	RabbitmqNode     []RabbitmqNode     `json:"rabbitmq_node"`
+}
+
+type Value struct {
+	FieldsAsColumns []string `json:"fieldsAsColumns"`
+	TagsAsColumns   []string `json:"tagsAsColumns"`
+	TargetTable     string   `json:"targetTable"`
+}
+
+type RabbitmqExchange struct {
+	AddedTags       []AddedTags `json:"addedTags"`
+	FieldsAsColumns []string    `json:"fieldsAsColumns"`
+	TagsAsColumns   []string    `json:"tagsAsColumns"`
+	TargetTable     string      `json:"targetTable"`
+}
+
+type RabbitmqQueue struct {
+	AddedTags       []AddedTags `json:"addedTags"`
+	FieldsAsColumns []string    `json:"fieldsAsColumns"`
+	TagsAsColumns   []string    `json:"tagsAsColumns"`
+	TargetTable     string      `json:"targetTable"`
+}
+
+type RabbitmqNode struct {
+	Ignore bool `json:"addedTags"`
+}
+
+type AddedTags struct {
+	Measurement string `json:"measurement"`
 }
 
 // json config file
