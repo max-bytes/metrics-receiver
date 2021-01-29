@@ -16,9 +16,9 @@ func TestBasicFunctionality(t *testing.T) {
 	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
-		Point{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, "1465839830100400200"},
-		Point{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, ""}, // make this nil
-		Point{"weather2", map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, map[string]string{"location": "us-midwest", "source": "test-source"}, "1465839830100400201"},
+		{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, "1465839830100400200"},
+		{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, ""}, // make this nil
+		{"weather2", map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, map[string]string{"location": "us-midwest", "source": "test-source"}, "1465839830100400201"},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
@@ -33,8 +33,8 @@ func TestEscaping1(t *testing.T) {
 	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
-		Point{"weat,he r", map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, map[string]string{`loc"ation, `: `us mid"west`}, "1465839830100400200"},
-		Point{`"weather"`, map[string]interface{}{`"temperature"`: 82}, map[string]string{`"location"`: `"us-midwest"`}, "1465839830100400200"},
+		{"weat,he r", map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, map[string]string{`loc"ation, `: `us mid"west`}, "1465839830100400200"},
+		{`"weather"`, map[string]interface{}{`"temperature"`: 82}, map[string]string{`"location"`: `"us-midwest"`}, "1465839830100400200"},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
@@ -49,8 +49,8 @@ func TestEscaping2(t *testing.T) {
 	actual, _ := Parse(strings.Join(lines, "\n"))
 
 	expected := []Point{
-		Point{"weat=her", map[string]interface{}{`temperature_string`: `temp: hot`}, map[string]string{`location`: `us-midwest`}, "1465839830100400200"},
-		Point{"weat=her", map[string]interface{}{`temp=erature_string`: `temp=hot`}, map[string]string{`loc=ation`: `us-mi=dwest`}, "1465839830100400201"},
+		{"weat=her", map[string]interface{}{`temperature_string`: `temp: hot`}, map[string]string{`location`: `us-midwest`}, "1465839830100400200"},
+		{"weat=her", map[string]interface{}{`temp=erature_string`: `temp=hot`}, map[string]string{`loc=ation`: `us-mi=dwest`}, "1465839830100400201"},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
