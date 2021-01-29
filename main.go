@@ -191,7 +191,6 @@ func buildWriteFlow(input Ret, config Configuration) (interface{}, interface{}, 
 	if addedTags != nil {
 		// merge these two maps
 		for _, v := range addedTags {
-
 			switch v.(type) {
 			case map[string]interface{}:
 				for key, value := range v.(map[string]interface{}) {
@@ -203,59 +202,35 @@ func buildWriteFlow(input Ret, config Configuration) (interface{}, interface{}, 
 		}
 	}
 
-	// for k, v := range tagsAsColumns {
-	// 	tags[k] = v
-	// }
+	var tagColumnValues []interface{}
 
-	// // var tagDataValues
+	for _, v := range tagsAsColumns {
+		if _, ok := tags[v.(string)]; ok {
+			tagColumnValues = append(tagColumnValues, v.(string))
+		}
+	}
 
-	// for k, v := range tags {
+	var tagDataValues []interface{}
 
-	// }
+	for key := range tags {
+		for _, v := range tagsAsColumns {
+			if key == v.(string) {
+				tagDataValues = append(tagDataValues, tags[v.(string)])
+			}
+		}
+	}
 
-	// $tagDataValues = array_filter(
-	// 	$tags,
-	// 	function ($key) use ($tagsAsColumns) {
-	// 		return !in_array($key, $tagsAsColumns);
+	// $fields = $point->getFields();
+	// $fieldColumnValues = array_map(function($field) use ($fields) {
+	// 	return $fields[$field];
+	// }, $fieldsAsColumns);
+	// $fieldDataValues = array_filter(
+	// 	$fields,
+	// 	function ($key) use ($fieldsAsColumns) {
+	// 		return !in_array($key, $fieldsAsColumns);
 	// 	},
 	// 	ARRAY_FILTER_USE_KEY
 	// );
-
-	/*
-		$insertRows = array_map(function($point) use ($tagsAsColumns, $fieldsAsColumns, $addedTags) {
-
-
-
-
-			$fields = $point->getFields();
-			$fieldColumnValues = array_map(function($field) use ($fields) {
-				return $fields[$field];
-			}, $fieldsAsColumns);
-			$fieldDataValues = array_filter(
-				$fields,
-				function ($key) use ($fieldsAsColumns) {
-					return !in_array($key, $fieldsAsColumns);
-				},
-				ARRAY_FILTER_USE_KEY
-			);
-
-			return array_merge(
-				[$timestampFormatted],
-				[json_encode(array_merge($tagDataValues, $fieldDataValues))],
-				$fieldColumnValues,
-				$tagColumnValues
-			);
-		}, $points);
-
-		$baseColumns = ['time', 'data'];
-		$targetTable = $measurementConfig['targetTable'];
-		$allColumns = array_merge($baseColumns, $fieldsAsColumns, $tagsAsColumns);
-		$columnsSQLStr = implode(',', array_map(function($c) { return "\"$c\""; }, $allColumns));
-		$placeholdersSQLStr = implode(',', array_map(function($index) { return "\${$index}"; }, range(1, sizeof($allColumns))));
-		$sql = "INSERT INTO $targetTable($columnsSQLStr) VALUES ($placeholdersSQLStr)";
-
-		return [$sql, $insertRows, null];
-	*/
 
 	return nil, nil, nil
 }
