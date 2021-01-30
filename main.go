@@ -220,17 +220,25 @@ func buildWriteFlow(input Ret, config Configuration) (interface{}, interface{}, 
 		}
 	}
 
-	// $fields = $point->getFields();
-	// $fieldColumnValues = array_map(function($field) use ($fields) {
-	// 	return $fields[$field];
-	// }, $fieldsAsColumns);
-	// $fieldDataValues = array_filter(
-	// 	$fields,
-	// 	function ($key) use ($fieldsAsColumns) {
-	// 		return !in_array($key, $fieldsAsColumns);
-	// 	},
-	// 	ARRAY_FILTER_USE_KEY
-	// );
+	var fields = points.Fields
+
+	var fieldColumnValues []interface{}
+
+	for _, v := range fieldsAsColumns {
+		if _, ok := fields[v.(string)]; ok {
+			fieldColumnValues = append(fieldColumnValues, v.(string))
+		}
+	}
+
+	var fieldDataValues []interface{}
+
+	for key := range fields {
+		for _, v := range fieldsAsColumns {
+			if key == v.(string) {
+				fieldDataValues = append(fieldDataValues, fields[v.(string)])
+			}
+		}
+	}
 
 	return nil, nil, nil
 }
