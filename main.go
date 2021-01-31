@@ -80,8 +80,19 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	var a = measurementSplitter(res)
 	fmt.Println(a)
 
-	var _, _, e = buildWriteFlow(a, config)
-	fmt.Println(e)
+	var sql, insertedRows, write_err = buildWriteFlow(a, config)
+
+	if write_err != nil {
+		http.Error(w, "Error on parsing the provieded file!", http.StatusBadRequest)
+		return
+	}
+
+	insert_error := insertRows(sql, insertedRows)
+
+	if insert_error != nil {
+		http.Error(w, "Error on inserting rows!", http.StatusBadRequest)
+		return
+	}
 
 	//Set Content-Type header so that clients will know how to read response
 	w.Header().Set("Content-Type", "application/json")
@@ -109,28 +120,6 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 func measurementSplitter(input []influx.Point) []Ret {
 
-	// var groupedPoints []influx.Point
-
-	/*
-	   $points = $input->getPoints();
-
-	   $groupedPoints = [];
-	   foreach($points as $point) {
-	       $measurement = $point->getMeasurement();
-	       $groupedPoints[$measurement][] = $point;
-	   }
-
-	   $ret = [];
-	   foreach($groupedPoints as $measurement => $points) {
-	       $ret[] = [
-	           'measurement' => $measurement,
-	           'points' => $points
-	       ];
-	   }
-
-	   return new \ArrayObject($ret);
-	*/
-
 	var groupedPoints map[string][]influx.Point = make(map[string][]influx.Point)
 
 	for _, point := range input {
@@ -148,20 +137,20 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, error) {
+func buildWriteFlow(i []Ret, config Configuration) (string, interface{}, error) {
 	for _, input := range i {
 
 		var points = input.points
 		var measurement = input.measurement
 
 		if _, ok := config.Measurements[0][measurement]; ok == false {
-			return nil, nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
+			return "", nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
 		}
 
 		var measurementConfig = config.Measurements[0][measurement]
 
 		if _, ok := measurementConfig[0]["ignore"]; ok {
-			return nil, nil, nil
+			return "", nil, nil
 		}
 
 		var tagsAsColumns = measurementConfig[0]["tagsAsColumns"]
@@ -173,6 +162,8 @@ func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, er
 			addedTags = measurementConfig[0]["addedTags"]
 		}
 
+		var insertRows []interface{}
+
 		for _, point := range points {
 
 			var timestamp time.Time
@@ -183,13 +174,11 @@ func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, er
 				timestamp = time.Now()
 			}
 
-			var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 	MST")
-			fmt.Println(timestampFormatted)
+			var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 MST")
 
 			var tags = point.Tags
 
 			if addedTags != nil {
-				// merge these two maps
 				for _, v := range addedTags {
 					switch v.(type) {
 					case map[string]interface{}:
@@ -237,13 +226,24 @@ func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, er
 				}
 			}
 
-			// return array_merge(
-			// 	[$timestampFormatted],
-			// 	[json_encode(array_merge($tagDataValues, $fieldDataValues))],
-			// 	$fieldColumnValues,
-			// 	$tagColumnValues
-			// );
+			encodedData, _ := json.Marshal(ArrayMerge(tagDataValues, fieldDataValues))
+
+			item := struct {
+				timestampFormatted string
+				encodedData        []byte
+				fieldColumnValues  []string
+				tagColumnValues    []string
+			}{
+				timestampFormatted: timestampFormatted,
+				encodedData:        encodedData,
+				fieldColumnValues:  fieldColumnValues,
+				tagColumnValues:    tagColumnValues,
+			}
+
+			insertRows = append(insertRows, item)
 		}
+
+		// fmt.Println(insertRows)
 
 		db, err := sql.Open("postgres", config.TimescaleConnectionString)
 		if err != nil {
@@ -274,16 +274,21 @@ func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, er
 		var placeholdersSQLStr = strings.Join(a, ",")
 
 		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable[0].(string), columnsSQLStr, placeholdersSQLStr)
-		fmt.Println(sql)
+		// fmt.Println(sql)
 		// $baseColumns = ['time', 'data'];
 		// $targetTable = $measurementConfig['targetTable'];
 		// $allColumns = array_merge($baseColumns, $fieldsAsColumns, $tagsAsColumns);
 		// $columnsSQLStr = implode(',', array_map(function($c) { return "\"$c\""; }, $allColumns));
 		// $placeholdersSQLStr = implode(',', array_map(function($index) { return "\${$index}"; }, range(1, sizeof($allColumns))));
 		// $sql = "INSERT INTO $targetTable($columnsSQLStr) VALUES ($placeholdersSQLStr)";
+		return sql, insertRows, nil
 	}
 
-	return nil, nil, nil
+	return "", nil, nil
+}
+
+func insertRows(insertQuery string, transformedInput interface{}) error {
+	return nil
 }
 
 // Structs to parse influx data
