@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,7 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
+	_ "github.com/lib/pq"
 	flag "github.com/spf13/pflag"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
 )
@@ -75,7 +80,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	var a = measurementSplitter(res)
 	fmt.Println(a)
 
-	var _, _, e = buildWriteFlow(a[0], config)
+	var _, _, e = buildWriteFlow(a, config)
 	fmt.Println(e)
 
 	//Set Content-Type header so that clients will know how to read response
@@ -126,11 +131,11 @@ func measurementSplitter(input []influx.Point) []Ret {
 	   return new \ArrayObject($ret);
 	*/
 
-	var groupedPoints map[string]influx.Point = make(map[string]influx.Point)
+	var groupedPoints map[string][]influx.Point = make(map[string][]influx.Point)
 
 	for _, point := range input {
 		var measurement = point.Measurement
-		groupedPoints[measurement] = point
+		groupedPoints[measurement] = append(groupedPoints[measurement], point)
 	}
 
 	var r []Ret
@@ -140,104 +145,142 @@ func measurementSplitter(input []influx.Point) []Ret {
 		r = append(r, p)
 	}
 
-	// Example of the response
-	// [{weat\=her {weat\=her map[temp\=erature_string:"temp\=hot"] map[loc\=ation:us-mi\=dwest] 1465839830100400201}}]
 	return r
 }
 
-func buildWriteFlow(input Ret, config Configuration) (interface{}, interface{}, error) {
+func buildWriteFlow(i []Ret, config Configuration) (interface{}, interface{}, error) {
+	for _, input := range i {
 
-	// Q1: is input in php code an array or is a object
+		var points = input.points
+		var measurement = input.measurement
 
-	// Q2 why we need to do this
-	var points = input.point
-	var measurement = input.measurement
+		if _, ok := config.Measurements[0][measurement]; ok == false {
+			return nil, nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
+		}
 
-	if _, ok := config.Measurements[0][measurement]; ok == false {
-		// Q3: do we need to return an array here
-		// return [null, null, "Unknown measurement \"{$measurement}\" encountered"]
-		return nil, nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
-	}
+		var measurementConfig = config.Measurements[0][measurement]
 
-	var measurementConfig = config.Measurements[0][measurement]
+		if _, ok := measurementConfig[0]["ignore"]; ok {
+			return nil, nil, nil
+		}
 
-	if _, ok := measurementConfig[0]["ignore"]; ok {
-		return nil, nil, nil
-	}
+		var tagsAsColumns = measurementConfig[0]["tagsAsColumns"]
+		var fieldsAsColumns = measurementConfig[0]["fieldsAsColumns"]
 
-	var tagsAsColumns = measurementConfig[0]["tagsAsColumns"]
-	var fieldsAsColumns = measurementConfig[0]["fieldsAsColumns"]
+		var addedTags []interface{} = nil
 
-	fmt.Println(tagsAsColumns)
-	fmt.Println(fieldsAsColumns)
+		if _, ok := measurementConfig[0]["addedTags"]; ok {
+			addedTags = measurementConfig[0]["addedTags"]
+		}
 
-	var addedTags []interface{} = nil
+		for _, point := range points {
 
-	if _, ok := measurementConfig[0]["addedTags"]; ok {
-		addedTags = measurementConfig[0]["addedTags"]
-	}
+			var timestamp time.Time
+			if point.Timestamp != "" {
+				t, _ := strconv.Atoi(point.Timestamp)
+				timestamp = time.Unix(0, int64(t))
+			} else {
+				timestamp = time.Now()
+			}
 
-	fmt.Println(addedTags)
+			var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 	MST")
+			fmt.Println(timestampFormatted)
 
-	// // fix timestamp conversion like in php example
-	// // var timestamp *time.Time
+			var tags = point.Tags
 
-	// if points.Timestamp != "" {
-	// 	// timestamp
-	// }
-
-	var tags = points.Tags
-
-	if addedTags != nil {
-		// merge these two maps
-		for _, v := range addedTags {
-			switch v.(type) {
-			case map[string]interface{}:
-				for key, value := range v.(map[string]interface{}) {
-					tags[key] = value.(string)
+			if addedTags != nil {
+				// merge these two maps
+				for _, v := range addedTags {
+					switch v.(type) {
+					case map[string]interface{}:
+						for key, value := range v.(map[string]interface{}) {
+							tags[key] = value.(string)
+						}
+					default:
+						fmt.Printf("%v is unknown \n ", v)
+					}
 				}
+			}
+			var tagColumnValues []string
+
+			for _, v := range tagsAsColumns {
+				if _, ok := tags[v.(string)]; ok {
+					tagColumnValues = append(tagColumnValues, v.(string))
+				}
+			}
+
+			var tagDataValues []interface{}
+
+			for key := range tags {
+				for _, v := range tagsAsColumns {
+					if key == v.(string) {
+						tagDataValues = append(tagDataValues, tags[v.(string)])
+					}
+				}
+			}
+			var fields = point.Fields
+			var fieldColumnValues []string
+
+			for _, v := range fieldsAsColumns {
+				if _, ok := fields[v.(string)]; ok {
+					fieldColumnValues = append(fieldColumnValues, v.(string))
+				}
+			}
+
+			var fieldDataValues []interface{}
+
+			for key := range fields {
+				for _, v := range fieldsAsColumns {
+					if key == v.(string) {
+						fieldDataValues = append(fieldDataValues, fields[v.(string)])
+					}
+				}
+			}
+
+			// return array_merge(
+			// 	[$timestampFormatted],
+			// 	[json_encode(array_merge($tagDataValues, $fieldDataValues))],
+			// 	$fieldColumnValues,
+			// 	$tagColumnValues
+			// );
+		}
+
+		db, err := sql.Open("postgres", config.TimescaleConnectionString)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+
+		var baseColumns []interface{} = []interface{}{"time", "data"}
+		targetTable := measurementConfig[0]["targetTable"]
+
+		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
+
+		var c []string
+
+		for _, value := range allColumns {
+			switch value.(type) {
+			case string:
+				c = append(c, value.(string))
 			default:
-				fmt.Printf("%v is unknown \n ", v)
+				fmt.Printf("%v is unknown \n ", value)
 			}
 		}
-	}
 
-	var tagColumnValues []interface{}
+		columnsSQLStr := strings.Join(c, ",")
 
-	for _, v := range tagsAsColumns {
-		if _, ok := tags[v.(string)]; ok {
-			tagColumnValues = append(tagColumnValues, v.(string))
-		}
-	}
+		var a []string = MakeRange(1, len(allColumns))
 
-	var tagDataValues []interface{}
+		var placeholdersSQLStr = strings.Join(a, ",")
 
-	for key := range tags {
-		for _, v := range tagsAsColumns {
-			if key == v.(string) {
-				tagDataValues = append(tagDataValues, tags[v.(string)])
-			}
-		}
-	}
-
-	var fields = points.Fields
-
-	var fieldColumnValues []interface{}
-
-	for _, v := range fieldsAsColumns {
-		if _, ok := fields[v.(string)]; ok {
-			fieldColumnValues = append(fieldColumnValues, v.(string))
-		}
-	}
-
-	var fieldDataValues []interface{}
-
-	for key := range fields {
-		for _, v := range fieldsAsColumns {
-			if key == v.(string) {
-				fieldDataValues = append(fieldDataValues, fields[v.(string)])
-			}
-		}
+		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable[0].(string), columnsSQLStr, placeholdersSQLStr)
+		fmt.Println(sql)
+		// $baseColumns = ['time', 'data'];
+		// $targetTable = $measurementConfig['targetTable'];
+		// $allColumns = array_merge($baseColumns, $fieldsAsColumns, $tagsAsColumns);
+		// $columnsSQLStr = implode(',', array_map(function($c) { return "\"$c\""; }, $allColumns));
+		// $placeholdersSQLStr = implode(',', array_map(function($index) { return "\${$index}"; }, range(1, sizeof($allColumns))));
+		// $sql = "INSERT INTO $targetTable($columnsSQLStr) VALUES ($placeholdersSQLStr)";
 	}
 
 	return nil, nil, nil
@@ -251,7 +294,7 @@ func buildWriteFlow(input Ret, config Configuration) (interface{}, interface{}, 
 
 type Ret struct {
 	measurement string
-	point       influx.Point
+	points      []influx.Point
 }
 
 // Structs used to parse configuration
@@ -306,6 +349,14 @@ func ArrayMerge(ss ...[]interface{}) []interface{} {
 		s = append(s, v...)
 	}
 	return s
+}
+
+func MakeRange(min, max int) []string {
+	a := make([]string, max-min+1)
+	for i := range a {
+		a[i] = strconv.Itoa(min + i)
+	}
+	return a
 }
 
 func In_array(needle interface{}, hystack interface{}) bool {
