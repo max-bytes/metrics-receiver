@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -87,7 +88,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	insert_error := insertRows(sql, insertedRows)
+	insert_error := insertRows(sql, insertedRows, config)
 
 	if insert_error != nil {
 		http.Error(w, "Error on inserting rows!", http.StatusBadRequest)
@@ -137,7 +138,7 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildWriteFlow(i []Ret, config Configuration) (string, interface{}, error) {
+func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error) {
 	for _, input := range i {
 
 		var points = input.points
@@ -243,14 +244,6 @@ func buildWriteFlow(i []Ret, config Configuration) (string, interface{}, error) 
 			insertRows = append(insertRows, item)
 		}
 
-		// fmt.Println(insertRows)
-
-		db, err := sql.Open("postgres", config.TimescaleConnectionString)
-		if err != nil {
-			panic(err)
-		}
-		defer db.Close()
-
 		var baseColumns []interface{} = []interface{}{"time", "data"}
 		targetTable := measurementConfig[0]["targetTable"]
 
@@ -274,28 +267,49 @@ func buildWriteFlow(i []Ret, config Configuration) (string, interface{}, error) 
 		var placeholdersSQLStr = strings.Join(a, ",")
 
 		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable[0].(string), columnsSQLStr, placeholdersSQLStr)
-		// fmt.Println(sql)
-		// $baseColumns = ['time', 'data'];
-		// $targetTable = $measurementConfig['targetTable'];
-		// $allColumns = array_merge($baseColumns, $fieldsAsColumns, $tagsAsColumns);
-		// $columnsSQLStr = implode(',', array_map(function($c) { return "\"$c\""; }, $allColumns));
-		// $placeholdersSQLStr = implode(',', array_map(function($index) { return "\${$index}"; }, range(1, sizeof($allColumns))));
-		// $sql = "INSERT INTO $targetTable($columnsSQLStr) VALUES ($placeholdersSQLStr)";
+
 		return sql, insertRows, nil
 	}
 
 	return "", nil, nil
 }
 
-func insertRows(insertQuery string, transformedInput interface{}) error {
+func insertRows(insertQuery string, transformedInput []interface{}, config Configuration) error {
+	db, err := sql.Open("postgres", config.TimescaleConnectionString)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(insertQuery)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close() // danger!
+
+	for _, ti := range transformedInput {
+		_, err = stmt.Exec(ti)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
 	return nil
 }
-
-// Structs to parse influx data
-
-// type Series struct {
-// 	Points []influx.Point
-// }
 
 type Ret struct {
 	measurement string
