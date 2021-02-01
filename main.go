@@ -1,10 +1,9 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -14,8 +13,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
-	flag "github.com/spf13/pflag"
+	"github.com/jackc/pgx"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
 )
 
@@ -79,7 +77,6 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var a = measurementSplitter(res)
-	fmt.Println(a)
 
 	var sql, insertedRows, write_err = buildWriteFlow(a, config)
 
@@ -138,7 +135,7 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error) {
+func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) {
 	for _, input := range i {
 
 		var points = input.points
@@ -163,7 +160,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error
 			addedTags = measurementConfig[0]["addedTags"]
 		}
 
-		var insertRows []interface{}
+		var insertRows []InsertRow
 
 		for _, point := range points {
 
@@ -229,12 +226,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error
 
 			encodedData, _ := json.Marshal(ArrayMerge(tagDataValues, fieldDataValues))
 
-			item := struct {
-				timestampFormatted string
-				encodedData        []byte
-				fieldColumnValues  []string
-				tagColumnValues    []string
-			}{
+			item := InsertRow{
 				timestampFormatted: timestampFormatted,
 				encodedData:        encodedData,
 				fieldColumnValues:  fieldColumnValues,
@@ -263,6 +255,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error
 		columnsSQLStr := strings.Join(c, ",")
 
 		var a []string = MakeRange(1, len(allColumns))
+		// var a []string = createArrayStr(len(allColumns))
 
 		var placeholdersSQLStr = strings.Join(a, ",")
 
@@ -274,30 +267,50 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []interface{}, error
 	return "", nil, nil
 }
 
-func insertRows(insertQuery string, transformedInput []interface{}, config Configuration) error {
-	db, err := sql.Open("postgres", config.TimescaleConnectionString)
+func insertRows(insertQuery string, transformedInput []InsertRow, config Configuration) error {
+
+	var c, err = pgx.ParseConnectionString(config.TimescaleConnectionString)
+	if err != nil {
+		// ...
+		panic(err)
+	}
+
+	conn, err := pgx.Connect(c)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer conn.Close()
 
-	ctx := context.Background()
-	tx, err := db.BeginTx(ctx, nil)
+	// ctx := context.Background()
+	tx, err := conn.Begin()
 
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare("insert_query", insertQuery)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(insertQuery)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer stmt.Close() // danger!
-
 	for _, ti := range transformedInput {
-		_, err = stmt.Exec(ti)
+
+		var a []interface{}
+
+		a = append(a, ti.timestampFormatted)
+		a = append(a, ti.encodedData)
+		for _, val := range ti.fieldColumnValues {
+			a = append(a, val)
+		}
+		for _, val := range ti.tagColumnValues {
+			a = append(a, val)
+		}
+
+		// _, err = tx.Exec(stmt.SQL, ti.timestampFormatted, ti.encodedData, ti.fieldColumnValues, ti.tagColumnValues...)
+		_, err = tx.Exec(stmt.SQL, a...)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -305,15 +318,22 @@ func insertRows(insertQuery string, transformedInput []interface{}, config Confi
 
 	err = tx.Commit()
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
+
 	return nil
 }
 
 type Ret struct {
 	measurement string
 	points      []influx.Point
+}
+
+type InsertRow struct {
+	timestampFormatted string
+	encodedData        []byte
+	fieldColumnValues  []string
+	tagColumnValues    []string
 }
 
 // Structs used to parse configuration
@@ -370,10 +390,18 @@ func ArrayMerge(ss ...[]interface{}) []interface{} {
 	return s
 }
 
+func createArrayStr(length int) []string {
+	var a []string
+	for i := 0; i < length; i++ {
+		a = append(a, "?")
+	}
+	return a
+}
+
 func MakeRange(min, max int) []string {
 	a := make([]string, max-min+1)
 	for i := range a {
-		a[i] = strconv.Itoa(min + i)
+		a[i] = "$" + strconv.Itoa(min+i)
 	}
 	return a
 }
