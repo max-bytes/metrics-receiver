@@ -338,44 +338,8 @@ type InsertRow struct {
 
 // Structs used to parse configuration
 type Configuration struct {
-	TimescaleConnectionString string `json:"timescaleConnectionString"`
-	// Measurements              []Measurement `json:"measurements"`
-	Measurements []map[string][]map[string][]interface{} `json:"measurements"`
-}
-
-type Measurement struct {
-	Value            []Value            `json:"value"`
-	RabbitmqExchange []RabbitmqExchange `json:"rabbitmq_exchange"`
-	RabbitmqQueue    []RabbitmqQueue    `json:"rabbitmq_queue"`
-	RabbitmqNode     []RabbitmqNode     `json:"rabbitmq_node"`
-}
-
-type Value struct {
-	FieldsAsColumns []string `json:"fieldsAsColumns"`
-	TagsAsColumns   []string `json:"tagsAsColumns"`
-	TargetTable     string   `json:"targetTable"`
-}
-
-type RabbitmqExchange struct {
-	AddedTags       []AddedTags `json:"addedTags"`
-	FieldsAsColumns []string    `json:"fieldsAsColumns"`
-	TagsAsColumns   []string    `json:"tagsAsColumns"`
-	TargetTable     string      `json:"targetTable"`
-}
-
-type RabbitmqQueue struct {
-	AddedTags       []AddedTags `json:"addedTags"`
-	FieldsAsColumns []string    `json:"fieldsAsColumns"`
-	TagsAsColumns   []string    `json:"tagsAsColumns"`
-	TargetTable     string      `json:"targetTable"`
-}
-
-type RabbitmqNode struct {
-	Ignore bool `json:"addedTags"`
-}
-
-type AddedTags struct {
-	Measurement string `json:"measurement"`
+	TimescaleConnectionString string                                  `json:"timescaleConnectionString"`
+	Measurements              []map[string][]map[string][]interface{} `json:"measurements"`
 }
 
 func ArrayMerge(ss ...[]interface{}) []interface{} {
