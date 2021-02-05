@@ -33,11 +33,8 @@ func main() {
 	}
 	defer file.Close()
 
-	// var Config Configuration
-
 	byteValue, _ := ioutil.ReadAll(file)
 	json.Unmarshal(byteValue, &config)
-	// log.Println(config.TimescaleConnectionString)
 
 	http.HandleFunc("/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/influx/v1/query", influxWriteHandler)
@@ -141,23 +138,23 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 		var points = input.points
 		var measurement = input.measurement
 
-		if _, ok := config.Measurements[0][measurement]; ok == false {
+		if _, ok := config.Measurements[measurement]; ok == false {
 			return "", nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
 		}
 
-		var measurementConfig = config.Measurements[0][measurement]
+		var measurementConfig = config.Measurements[measurement]
 
-		if _, ok := measurementConfig[0]["ignore"]; ok {
+		if _, ok := measurementConfig["ignore"]; ok {
 			return "", nil, nil
 		}
 
-		var tagsAsColumns = measurementConfig[0]["tagsAsColumns"]
-		var fieldsAsColumns = measurementConfig[0]["fieldsAsColumns"]
+		var tagsAsColumns = measurementConfig["tagsAsColumns"]
+		var fieldsAsColumns = measurementConfig["fieldsAsColumns"]
 
 		var addedTags []interface{} = nil
 
-		if _, ok := measurementConfig[0]["addedTags"]; ok {
-			addedTags = measurementConfig[0]["addedTags"]
+		if _, ok := measurementConfig["addedTags"]; ok {
+			addedTags = measurementConfig["addedTags"]
 		}
 
 		var insertRows []InsertRow
@@ -188,43 +185,44 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 					}
 				}
 			}
-			var tagColumnValues []string
+			var tagColumnValues []interface{}
 
 			for _, v := range tagsAsColumns {
 				if _, ok := tags[v.(string)]; ok {
-					tagColumnValues = append(tagColumnValues, v.(string))
+					tagColumnValues = append(tagColumnValues, tags[v.(string)])
 				}
 			}
 
-			var tagDataValues []interface{}
+			var tagDataValues map[string]interface{} = make(map[string]interface{})
 
-			for key := range tags {
+			for key, tagValue := range tags {
 				for _, v := range tagsAsColumns {
 					if key == v.(string) {
-						tagDataValues = append(tagDataValues, tags[v.(string)])
+						tagDataValues[key] = tagValue
 					}
 				}
 			}
+
 			var fields = point.Fields
-			var fieldColumnValues []string
+			var fieldColumnValues []interface{}
 
 			for _, v := range fieldsAsColumns {
 				if _, ok := fields[v.(string)]; ok {
-					fieldColumnValues = append(fieldColumnValues, v.(string))
+					fieldColumnValues = append(fieldColumnValues, fields[v.(string)])
 				}
 			}
 
-			var fieldDataValues []interface{}
+			var fieldDataValues map[string]interface{} = make(map[string]interface{})
 
-			for key := range fields {
+			for key, fieldValue := range fields {
 				for _, v := range fieldsAsColumns {
 					if key == v.(string) {
-						fieldDataValues = append(fieldDataValues, fields[v.(string)])
+						fieldDataValues[key] = fieldValue
 					}
 				}
 			}
 
-			encodedData, _ := json.Marshal(ArrayMerge(tagDataValues, fieldDataValues))
+			encodedData, _ := json.Marshal(MapsMerge(tagDataValues, fieldDataValues))
 
 			item := InsertRow{
 				timestampFormatted: timestampFormatted,
@@ -237,7 +235,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 		}
 
 		var baseColumns []interface{} = []interface{}{"time", "data"}
-		targetTable := measurementConfig[0]["targetTable"]
+		targetTable := measurementConfig["targetTable"]
 
 		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
 
@@ -255,7 +253,6 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 		columnsSQLStr := strings.Join(c, ",")
 
 		var a []string = MakeRange(1, len(allColumns))
-		// var a []string = createArrayStr(len(allColumns))
 
 		var placeholdersSQLStr = strings.Join(a, ",")
 
@@ -281,7 +278,6 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 	}
 	defer conn.Close()
 
-	// ctx := context.Background()
 	tx, err := conn.Begin()
 
 	if err != nil {
@@ -309,7 +305,6 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 			a = append(a, val)
 		}
 
-		// _, err = tx.Exec(stmt.SQL, ti.timestampFormatted, ti.encodedData, ti.fieldColumnValues, ti.tagColumnValues...)
 		_, err = tx.Exec(stmt.SQL, a...)
 		if err != nil {
 			log.Fatal(err)
@@ -332,14 +327,14 @@ type Ret struct {
 type InsertRow struct {
 	timestampFormatted string
 	encodedData        []byte
-	fieldColumnValues  []string
-	tagColumnValues    []string
+	fieldColumnValues  []interface{}
+	tagColumnValues    []interface{}
 }
 
 // Structs used to parse configuration
 type Configuration struct {
-	TimescaleConnectionString string                                  `json:"timescaleConnectionString"`
-	Measurements              []map[string][]map[string][]interface{} `json:"measurements"`
+	TimescaleConnectionString string                              `json:"timescaleConnectionString"`
+	Measurements              map[string]map[string][]interface{} `json:"measurements"`
 }
 
 func ArrayMerge(ss ...[]interface{}) []interface{} {
@@ -354,12 +349,14 @@ func ArrayMerge(ss ...[]interface{}) []interface{} {
 	return s
 }
 
-func createArrayStr(length int) []string {
-	var a []string
-	for i := 0; i < length; i++ {
-		a = append(a, "?")
+func MapsMerge(ss ...map[string]interface{}) map[string]interface{} {
+	s := make(map[string]interface{})
+	for _, item := range ss {
+		for key, value := range item {
+			s[key] = value
+		}
 	}
-	return a
+	return s
 }
 
 func MakeRange(min, max int) []string {

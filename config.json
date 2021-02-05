@@ -1,48 +1,29 @@
 {
     "timescaleConnectionString": "host=localhost port=5432 dbname=metrics user=postgres password=postgres sslmode=disable",
-    "measurements": [
-        {
-            "value": [
-                {
-                    "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
-                    "tagsAsColumns": ["host", "service", "label", "uom"],
-                    "targetTable": ["metric"],
-                    "addedTags": [
-                        {
-                            "measurement": "exchange"
-                        }
-                    ]
-                }
-            ],
-            "rabbitmq_exchange": [
-                {
-                    "addedTags": [
-                        {
-                            "measurement": "exchange"
-                        }
-                    ],
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": ["rabbitmq"]
-                }
-            ],
-            "rabbitmq_queue": [
-                {
-                    "addedTags": [
-                        {
-                            "measurement": "queue"
-                        }
-                    ],
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": ["rabbitmq"]
-                }
-            ],
-            "rabbitmq_node": [
-                {
-                    "ignore": true
-                }
-            ]
+    "measurements": {
+        "value": {
+            "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
+            "tagsAsColumns": ["host", "service", "label", "uom"],
+            "targetTable": ["metric"]
+        },
+        "rabbitmq_exchange": {
+            "addedTags": {
+                "measurement": "exchange"
+            },
+            "fieldsAsColumns": [],
+            "tagsAsColumns": [],
+            "targetTable": ["rabbitmq"]
+        },
+        "rabbitmq_queue": {
+            "addedTags": {
+                "measurement": "queue"
+            },
+            "fieldsAsColumns": [],
+            "tagsAsColumns": [],
+            "targetTable": ["rabbitmq"]
+        },
+        "rabbitmq_node": {
+            "ignore": true
         }
-    ]
+    }
 }
