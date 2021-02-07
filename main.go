@@ -1,10 +1,12 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -46,7 +48,6 @@ func main() {
 }
 
 // POST /influx/v1/write
-
 func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/influx/v1/write" {
 		http.Error(w, "404 not found.", http.StatusNotFound)
@@ -58,7 +59,18 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf, err := ioutil.ReadAll(r.Body)
+	var reader io.ReadCloser
+	var err error
+
+	switch r.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err = gzip.NewReader(r.Body)
+		defer reader.Close()
+	default:
+		reader = r.Body
+	}
+
+	buf, err := ioutil.ReadAll(reader)
 
 	if err != nil {
 		log.Fatal("request", err)
@@ -67,11 +79,6 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	requestStr := string(buf)
 
 	res, _ := influx.Parse(requestStr)
-	resJson, err := json.Marshal(res)
-	if err != nil {
-		http.Error(w, "Error on parsing the provieded file!", http.StatusNotFound)
-		return
-	}
 
 	var a = measurementSplitter(res)
 
@@ -85,19 +92,18 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	insert_error := insertRows(sql, insertedRows, config)
 
 	if insert_error != nil {
-		http.Error(w, "Error on inserting rows!", http.StatusBadRequest)
+		http.Error(w, insert_error.Error(), http.StatusBadRequest)
 		return
 	}
 
 	//Set Content-Type header so that clients will know how to read response
-	w.Header().Set("Content-Type", "application/json")
+	// w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	//Write json response back to response
-	w.Write(resJson)
+	// w.Write(resJson)
 }
 
 // POST /influx/v1/query
-
 func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/influx/v1/query" {
 		http.Error(w, "404 not found.", http.StatusNotFound)
@@ -266,30 +272,32 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 
 func insertRows(insertQuery string, transformedInput []InsertRow, config Configuration) error {
 
-	var c, err = pgx.ParseConnectionString(config.TimescaleConnectionString)
-	if err != nil {
-		// ...
-		panic(err)
+	var c, parseErr = pgx.ParseConnectionString(config.TimescaleConnectionString)
+	if parseErr != nil {
+		log.Fatal(parseErr)
+		return parseErr
 	}
 
-	conn, err := pgx.Connect(c)
-	if err != nil {
-		panic(err)
+	conn, connErr := pgx.Connect(c)
+	if connErr != nil {
+		log.Fatal(connErr)
+		return connErr
 	}
 	defer conn.Close()
 
-	tx, err := conn.Begin()
+	tx, beginErr := conn.Begin()
 
-	if err != nil {
-		log.Fatal(err)
+	if beginErr != nil {
+		log.Fatal(beginErr)
+		return beginErr
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare("insert_query", insertQuery)
-	if err != nil {
-		log.Fatal(err)
+	stmt, prepareErr := tx.Prepare("insert_query", insertQuery)
+	if prepareErr != nil {
+		log.Fatal(prepareErr)
+		return prepareErr
 	}
-
 	defer tx.Rollback()
 
 	for _, ti := range transformedInput {
@@ -305,13 +313,14 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 			a = append(a, val)
 		}
 
-		_, err = tx.Exec(stmt.SQL, a...)
-		if err != nil {
-			log.Fatal(err)
+		_, insertErr := tx.Exec(stmt.SQL, a...)
+		if insertErr != nil {
+			log.Fatal(insertErr)
+			return insertErr
 		}
 	}
 
-	err = tx.Commit()
+	err := tx.Commit()
 	if err != nil {
 		return err
 	}
