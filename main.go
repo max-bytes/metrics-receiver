@@ -31,7 +31,7 @@ func main() {
 	flag.Parse()
 	file, err := os.Open(*configFile)
 	if err != nil {
-		log.Fatal("can't open config file: ", err)
+		log.Println("can't open config file: ", err)
 	}
 	defer file.Close()
 
@@ -39,7 +39,7 @@ func main() {
 	json.Unmarshal(byteValue, &config)
 
 	http.HandleFunc("/influx/v1/write", influxWriteHandler)
-	http.HandleFunc("/influx/v1/query", influxWriteHandler)
+	http.HandleFunc("/influx/v1/query", influxQueryHandler)
 
 	fmt.Printf("Starting server at port 8080\n")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -97,11 +97,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Set Content-Type header so that clients will know how to read response
-	// w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	//Write json response back to response
-	// w.Write(resJson)
 }
 
 // POST /influx/v1/query
@@ -111,7 +107,7 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Method != "POST" {
+	if r.Method != "GET" {
 		http.Error(w, "Method is not supported.", http.StatusNotFound)
 		return
 	}
@@ -275,13 +271,13 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 
 	var c, parseErr = pgx.ParseConnectionString(config.TimescaleConnectionString)
 	if parseErr != nil {
-		log.Fatal(parseErr)
+		log.Println(parseErr)
 		return parseErr
 	}
 
 	conn, connErr := pgx.Connect(c)
 	if connErr != nil {
-		log.Fatal(connErr)
+		log.Println(connErr)
 		return connErr
 	}
 	defer conn.Close()
@@ -289,14 +285,14 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 	tx, beginErr := conn.Begin()
 
 	if beginErr != nil {
-		log.Fatal(beginErr)
+		log.Println(beginErr)
 		return beginErr
 	}
 	defer tx.Rollback()
 
 	stmt, prepareErr := tx.Prepare("insert_query", insertQuery)
 	if prepareErr != nil {
-		log.Fatal(prepareErr)
+		log.Println(prepareErr)
 		return prepareErr
 	}
 	defer tx.Rollback()
@@ -316,7 +312,7 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 
 		_, insertErr := tx.Exec(stmt.SQL, a...)
 		if insertErr != nil {
-			log.Fatal(insertErr)
+			log.Println(insertErr)
 			return insertErr
 		}
 	}
