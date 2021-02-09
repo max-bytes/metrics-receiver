@@ -73,7 +73,8 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(reader)
 
 	if err != nil {
-		log.Fatal("request", err)
+		http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
+		return
 	}
 
 	requestStr := string(buf)

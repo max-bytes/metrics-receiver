@@ -1,0 +1,25 @@
+stages:
+ - build
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+
+build:
+  image: docker:stable
+  stage: build
+  when: on_success
+  tags:
+    - dockerbuild
+  services:
+    - docker:19.03.1-dind
+  only: 
+    - tags
+  before_script:
+    - "docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY"
+  script:
+    - "VERSION=$CI_COMMIT_TAG" #$(git describe --tags --abbrev=0)"
+    - echo "Building version $VERSION"
+    - "docker build -t $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor:$VERSION -t $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor:latest --build-arg version=$VERSION -f ./build/tsa-event-processor/Dockerfile ."
+    - "docker push $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor"
