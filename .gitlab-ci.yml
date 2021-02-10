@@ -23,3 +23,4 @@ build:
     - echo "Building version $VERSION"
     - "docker build -t $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng:$VERSION -t $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng:latest --build-arg version=$VERSION -f ./build/metrics-receiver-ng/Dockerfile ."
     - "docker push $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng"
+
