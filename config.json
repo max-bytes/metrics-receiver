@@ -4,7 +4,7 @@
         "value": {
             "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
             "tagsAsColumns": ["host", "service", "label", "uom"],
-            "targetTable": ["metric"]
+            "targetTable": "metric"
         },
         "rabbitmq_exchange": {
             "addedTags": {
@@ -12,7 +12,7 @@
             },
             "fieldsAsColumns": [],
             "tagsAsColumns": [],
-            "targetTable": ["rabbitmq"]
+            "targetTable": "rabbitmq"
         },
         "rabbitmq_queue": {
             "addedTags": {
@@ -20,7 +20,7 @@
             },
             "fieldsAsColumns": [],
             "tagsAsColumns": [],
-            "targetTable": ["rabbitmq"]
+            "targetTable": "rabbitmq"
         },
         "rabbitmq_node": {
             "ignore": true

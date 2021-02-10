@@ -21,5 +21,5 @@ build:
   script:
     - "VERSION=$CI_COMMIT_TAG" #$(git describe --tags --abbrev=0)"
     - echo "Building version $VERSION"
-    - "docker build -t $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor:$VERSION -t $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor:latest --build-arg version=$VERSION -f ./build/tsa-event-processor/Dockerfile ."
-    - "docker push $CI_REGISTRY/landscape-exclusive-tsa/tsa-event-processor/tsa-event-processor"
+    - "docker build -t $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng:$VERSION -t $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng:latest --build-arg version=$VERSION -f ./build/metrics-receiver-ng/Dockerfile ."
+    - "docker push $CI_REGISTRY/landscape/metrics-receiver-ng/metrics-receiver-ng"

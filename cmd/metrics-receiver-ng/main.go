@@ -31,11 +31,14 @@ func main() {
 	flag.Parse()
 	file, err := os.Open(*configFile)
 	if err != nil {
-		log.Println("can't open config file: ", err)
+		log.Fatal("can't open config file: ", err)
 	}
 	defer file.Close()
 
-	byteValue, _ := ioutil.ReadAll(file)
+	byteValue, readErr := ioutil.ReadAll(file)
+	if readErr != nil {
+		log.Fatal("can't read config file: ", err)
+	}
 	json.Unmarshal(byteValue, &config)
 
 	http.HandleFunc("/influx/v1/write", influxWriteHandler)
@@ -49,13 +52,8 @@ func main() {
 
 // POST /influx/v1/write
 func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/influx/v1/write" {
-		http.Error(w, "404 not found.", http.StatusNotFound)
-		return
-	}
-
 	if r.Method != "POST" {
-		http.Error(w, "Method is not supported.", http.StatusNotFound)
+		http.Error(w, "Method is not supported.", http.StatusForbidden)
 		return
 	}
 
@@ -73,46 +71,49 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(reader)
 
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
 		return
 	}
 
 	requestStr := string(buf)
 
-	res, _ := influx.Parse(requestStr)
+	res, parseErr := influx.Parse(requestStr)
+	if parseErr != nil {
+		log.Println(parseErr)
+		http.Error(w, "An error ocurred while parsing the provieded file!", http.StatusBadRequest)
+		return
+	}
 
 	var a = measurementSplitter(res)
 
-	var sql, insertedRows, write_err = buildWriteFlow(a, config)
+	var sql, insertedRows, buildDBRowsErr = buildDBRows(a, config)
 
-	if write_err != nil {
-		http.Error(w, "Error on parsing the provieded file!", http.StatusBadRequest)
+	if buildDBRowsErr != nil {
+		log.Println(buildDBRowsErr)
+		http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
 		return
 	}
 
-	insert_error := insertRows(sql, insertedRows, config)
+	insertErr := insertRows(sql, insertedRows, config)
 
-	if insert_error != nil {
-		http.Error(w, insert_error.Error(), http.StatusBadRequest)
+	if insertErr != nil {
+		log.Println(insertErr)
+		http.Error(w, insertErr.Error(), http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// POST /influx/v1/query
+// GET /influx/v1/query
 func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/influx/v1/query" {
-		http.Error(w, "404 not found.", http.StatusNotFound)
-		return
-	}
-
 	if r.Method != "GET" {
-		http.Error(w, "Method is not supported.", http.StatusNotFound)
+		http.Error(w, "Method is not supported.", http.StatusForbidden)
 		return
 	}
 
-	http.Error(w, "Not authorized", 401)
+	http.Error(w, "Not supported", http.StatusUnauthorized)
 	return
 }
 
@@ -135,7 +136,7 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) {
+func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
 	for _, input := range i {
 
 		var points = input.points
@@ -147,17 +148,17 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 
 		var measurementConfig = config.Measurements[measurement]
 
-		if _, ok := measurementConfig["ignore"]; ok {
+		if measurementConfig.Ignore {
 			return "", nil, nil
 		}
 
-		var tagsAsColumns = measurementConfig["tagsAsColumns"]
-		var fieldsAsColumns = measurementConfig["fieldsAsColumns"]
+		var tagsAsColumns = measurementConfig.TagsAsColumns
+		var fieldsAsColumns = measurementConfig.FieldsAsColumns
 
-		var addedTags []interface{} = nil
+		var addedTags map[string]string = nil
 
-		if _, ok := measurementConfig["addedTags"]; ok {
-			addedTags = measurementConfig["addedTags"]
+		if measurementConfig.AddedTags != nil {
+			addedTags = measurementConfig.AddedTags
 		}
 
 		var insertRows []InsertRow
@@ -177,22 +178,15 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 			var tags = point.Tags
 
 			if addedTags != nil {
-				for _, v := range addedTags {
-					switch v.(type) {
-					case map[string]interface{}:
-						for key, value := range v.(map[string]interface{}) {
-							tags[key] = value.(string)
-						}
-					default:
-						fmt.Printf("%v is unknown \n ", v)
-					}
+				for k, v := range addedTags {
+					tags[k] = v
 				}
 			}
 			var tagColumnValues []interface{}
 
 			for _, v := range tagsAsColumns {
-				if _, ok := tags[v.(string)]; ok {
-					tagColumnValues = append(tagColumnValues, tags[v.(string)])
+				if _, ok := tags[v]; ok {
+					tagColumnValues = append(tagColumnValues, tags[v])
 				}
 			}
 
@@ -200,7 +194,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 
 			for key, tagValue := range tags {
 				for _, v := range tagsAsColumns {
-					if key == v.(string) {
+					if key == v {
 						tagDataValues[key] = tagValue
 					}
 				}
@@ -210,8 +204,8 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 			var fieldColumnValues []interface{}
 
 			for _, v := range fieldsAsColumns {
-				if _, ok := fields[v.(string)]; ok {
-					fieldColumnValues = append(fieldColumnValues, fields[v.(string)])
+				if _, ok := fields[v]; ok {
+					fieldColumnValues = append(fieldColumnValues, fields[v])
 				}
 			}
 
@@ -219,7 +213,7 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 
 			for key, fieldValue := range fields {
 				for _, v := range fieldsAsColumns {
-					if key == v.(string) {
+					if key == v {
 						fieldDataValues[key] = fieldValue
 					}
 				}
@@ -237,29 +231,24 @@ func buildWriteFlow(i []Ret, config Configuration) (string, []InsertRow, error) 
 			insertRows = append(insertRows, item)
 		}
 
-		var baseColumns []interface{} = []interface{}{"time", "data"}
-		targetTable := measurementConfig["targetTable"]
+		var baseColumns []string = []string{"time", "data"}
+		targetTable := measurementConfig.TargetTable
 
 		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
 
 		var c []string
 
 		for _, value := range allColumns {
-			switch value.(type) {
-			case string:
-				c = append(c, value.(string))
-			default:
-				fmt.Printf("%v is unknown \n ", value)
-			}
+			c = append(c, value)
 		}
 
 		columnsSQLStr := strings.Join(c, ",")
 
-		var a []string = MakeRange(1, len(allColumns))
+		var a []string = CreateBindParameterList(1, len(allColumns))
 
 		var placeholdersSQLStr = strings.Join(a, ",")
 
-		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable[0].(string), columnsSQLStr, placeholdersSQLStr)
+		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
 
 		return sql, insertRows, nil
 	}
@@ -271,13 +260,13 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 
 	var c, parseErr = pgx.ParseConnectionString(config.TimescaleConnectionString)
 	if parseErr != nil {
-		log.Println(parseErr)
+		log.Fatal(parseErr)
 		return parseErr
 	}
 
 	conn, connErr := pgx.Connect(c)
 	if connErr != nil {
-		log.Println(connErr)
+		log.Fatal(connErr)
 		return connErr
 	}
 	defer conn.Close()
@@ -288,14 +277,13 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 		log.Println(beginErr)
 		return beginErr
 	}
-	defer tx.Rollback()
 
 	stmt, prepareErr := tx.Prepare("insert_query", insertQuery)
 	if prepareErr != nil {
 		log.Println(prepareErr)
+		tx.Rollback()
 		return prepareErr
 	}
-	defer tx.Rollback()
 
 	for _, ti := range transformedInput {
 
@@ -313,12 +301,15 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 		_, insertErr := tx.Exec(stmt.SQL, a...)
 		if insertErr != nil {
 			log.Println(insertErr)
+			tx.Rollback()
 			return insertErr
 		}
 	}
 
 	err := tx.Commit()
 	if err != nil {
+		log.Println(err)
+		tx.Rollback()
 		return err
 	}
 
@@ -337,18 +328,25 @@ type InsertRow struct {
 	tagColumnValues    []interface{}
 }
 
-// Structs used to parse configuration
 type Configuration struct {
 	TimescaleConnectionString string                              `json:"timescaleConnectionString"`
-	Measurements              map[string]map[string][]interface{} `json:"measurements"`
+	Measurements              map[string]MeasurementConfiguration `json:"measurements"`
 }
 
-func ArrayMerge(ss ...[]interface{}) []interface{} {
+type MeasurementConfiguration struct {
+	AddedTags       map[string]string
+	FieldsAsColumns []string
+	TagsAsColumns   []string
+	TargetTable     string
+	Ignore          bool
+}
+
+func ArrayMerge(ss ...[]string) []string {
 	n := 0
 	for _, v := range ss {
 		n += len(v)
 	}
-	s := make([]interface{}, 0, n)
+	s := make([]string, 0, n)
 	for _, v := range ss {
 		s = append(s, v...)
 	}
@@ -365,7 +363,7 @@ func MapsMerge(ss ...map[string]interface{}) map[string]interface{} {
 	return s
 }
 
-func MakeRange(min, max int) []string {
+func CreateBindParameterList(min, max int) []string {
 	a := make([]string, max-min+1)
 	for i := range a {
 		a[i] = "$" + strconv.Itoa(min+i)
