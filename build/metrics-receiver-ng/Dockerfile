@@ -3,6 +3,7 @@ WORKDIR /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 COPY . /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 RUN go mod vendor
 RUN echo $GOPATH
+ENV CGO_ENABLED=0
 ARG version
 RUN go build -ldflags "-X main.version=$version" -o /out/metrics-receiver-ng ./cmd/metrics-receiver-ng
 
