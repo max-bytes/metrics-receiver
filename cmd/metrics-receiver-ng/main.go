@@ -41,8 +41,8 @@ func main() {
 	}
 	json.Unmarshal(byteValue, &config)
 
-	http.HandleFunc("/influx/v1/write", influxWriteHandler)
-	http.HandleFunc("/influx/v1/query", influxQueryHandler)
+	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
+	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
 
 	fmt.Printf("Starting server at port 8080\n")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
