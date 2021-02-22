@@ -3,6 +3,7 @@ package influx
 import (
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -216,10 +217,14 @@ func ParsePoint(line string) (Point, error) {
 				value = floatVal
 				fieldSet[key] = value.(float64)
 			} else if rf.MatchString(value.(string)) {
-				m := rf.FindAllString(value.(string), 1)
+				m := rf.FindStringSubmatch(value.(string))
 				fmt.Println(m)
-				v, _ := strconv.ParseInt(m[0], 0, 32)
+				v, e := strconv.ParseInt(m[1], 10, 64)
 				value = v
+				if e != nil {
+					log.Println(e)
+					return Point{}, e
+				}
 				fieldSet[key] = value.(int64)
 			} else {
 				fieldSet[key] = value.(string)
