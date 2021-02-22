@@ -16,7 +16,7 @@ func Parse(input string) ([]Point, error) {
 	var ret []Point
 
 	for _, line := range lines {
-		if line == " " {
+		if line == "" {
 			continue
 		}
 
