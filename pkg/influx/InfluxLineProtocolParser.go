@@ -218,7 +218,6 @@ func ParsePoint(line string) (Point, error) {
 				fieldSet[key] = value.(float64)
 			} else if rf.MatchString(value.(string)) {
 				m := rf.FindStringSubmatch(value.(string))
-				fmt.Println(m)
 				v, e := strconv.ParseInt(m[1], 10, 64)
 				value = v
 				if e != nil {
