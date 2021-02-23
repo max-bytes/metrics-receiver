@@ -117,7 +117,7 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func measurementSplitter(input []influx.Point) []Ret {
+func measurementSplitter(input []influx.Point) Ret {
 
 	var groupedPoints map[string][]influx.Point = make(map[string][]influx.Point)
 
@@ -126,134 +126,134 @@ func measurementSplitter(input []influx.Point) []Ret {
 		groupedPoints[measurement] = append(groupedPoints[measurement], point)
 	}
 
-	var r []Ret
+	var r Ret
 
 	for measurement, points := range groupedPoints {
-		var p = Ret{measurement, points}
-		r = append(r, p)
+		r = Ret{measurement, points}
 	}
 
 	return r
 }
 
-func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
-	for _, input := range i {
+func buildDBRows(input Ret, config Configuration) (string, []InsertRow, error) {
 
-		var points = input.points
-		var measurement = input.measurement
+	var points = input.points
+	var measurement = input.measurement
 
-		if _, ok := config.Measurements[measurement]; ok == false {
-			return "", nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
-		}
-
-		var measurementConfig = config.Measurements[measurement]
-
-		if measurementConfig.Ignore {
-			return "", nil, nil
-		}
-
-		var tagsAsColumns = measurementConfig.TagsAsColumns
-		var fieldsAsColumns = measurementConfig.FieldsAsColumns
-
-		var addedTags map[string]string = nil
-
-		if measurementConfig.AddedTags != nil {
-			addedTags = measurementConfig.AddedTags
-		}
-
-		var insertRows []InsertRow
-
-		for _, point := range points {
-
-			var timestamp time.Time
-			if point.Timestamp != "" {
-				t, _ := strconv.Atoi(point.Timestamp)
-				timestamp = time.Unix(0, int64(t))
-			} else {
-				timestamp = time.Now()
-			}
-
-			var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 MST")
-
-			var tags = point.Tags
-
-			if addedTags != nil {
-				for k, v := range addedTags {
-					tags[k] = v
-				}
-			}
-			var tagColumnValues []interface{}
-
-			for _, v := range tagsAsColumns {
-				if _, ok := tags[v]; ok {
-					tagColumnValues = append(tagColumnValues, tags[v])
-				}
-			}
-
-			var tagDataValues map[string]interface{} = make(map[string]interface{})
-
-			for key, tagValue := range tags {
-				for _, v := range tagsAsColumns {
-					if key == v {
-						tagDataValues[key] = tagValue
-					}
-				}
-			}
-
-			var fields = point.Fields
-			var fieldColumnValues []interface{}
-
-			for _, v := range fieldsAsColumns {
-				if _, ok := fields[v]; ok {
-					fieldColumnValues = append(fieldColumnValues, fields[v])
-				}
-			}
-
-			var fieldDataValues map[string]interface{} = make(map[string]interface{})
-
-			for key, fieldValue := range fields {
-				for _, v := range fieldsAsColumns {
-					if key == v {
-						fieldDataValues[key] = fieldValue
-					}
-				}
-			}
-
-			encodedData, _ := json.Marshal(MapsMerge(tagDataValues, fieldDataValues))
-
-			item := InsertRow{
-				timestampFormatted: timestampFormatted,
-				encodedData:        encodedData,
-				fieldColumnValues:  fieldColumnValues,
-				tagColumnValues:    tagColumnValues,
-			}
-
-			insertRows = append(insertRows, item)
-		}
-
-		var baseColumns []string = []string{"time", "data"}
-		targetTable := measurementConfig.TargetTable
-
-		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
-
-		var c []string
-
-		for _, value := range allColumns {
-			c = append(c, value)
-		}
-
-		columnsSQLStr := strings.Join(c, ",")
-
-		var a []string = CreateBindParameterList(1, len(allColumns))
-
-		var placeholdersSQLStr = strings.Join(a, ",")
-
-		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
-
-		return sql, insertRows, nil
+	if _, ok := config.Measurements[measurement]; ok == false {
+		return "", nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
 	}
 
-	return "", nil, nil
+	var measurementConfig = config.Measurements[measurement]
+
+	if measurementConfig.Ignore {
+		return "", nil, nil
+	}
+
+	var tagsAsColumns = measurementConfig.TagsAsColumns
+	var fieldsAsColumns = measurementConfig.FieldsAsColumns
+
+	var addedTags map[string]string = nil
+
+	if measurementConfig.AddedTags != nil {
+		addedTags = measurementConfig.AddedTags
+	}
+
+	var insertRows []InsertRow
+
+	for _, point := range points {
+
+		var timestamp time.Time
+		if point.Timestamp != "" {
+			t, _ := strconv.Atoi(point.Timestamp)
+			timestamp = time.Unix(0, int64(t))
+		} else {
+			timestamp = time.Now()
+		}
+
+		var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 MST")
+
+		var tags = point.Tags
+
+		if addedTags != nil {
+			for k, v := range addedTags {
+				tags[k] = v
+			}
+		}
+		var tagColumnValues []interface{}
+
+		for _, v := range tagsAsColumns {
+			if _, ok := tags[v]; ok {
+				tagColumnValues = append(tagColumnValues, tags[v])
+			} else {
+				tagColumnValues = append(tagColumnValues, nil)
+			}
+		}
+
+		var tagDataValues map[string]interface{} = make(map[string]interface{})
+
+		for key, tagValue := range tags {
+			for _, v := range tagsAsColumns {
+				if key == v {
+					tagDataValues[key] = tagValue
+				}
+			}
+		}
+
+		var fields = point.Fields
+		var fieldColumnValues []interface{}
+
+		for _, v := range fieldsAsColumns {
+			if _, ok := fields[v]; ok {
+				fieldColumnValues = append(fieldColumnValues, fields[v])
+			} else {
+				fieldColumnValues = append(fieldColumnValues, nil)
+			}
+		}
+
+		var fieldDataValues map[string]interface{} = make(map[string]interface{})
+
+		for key, fieldValue := range fields {
+			for _, v := range fieldsAsColumns {
+				if key == v {
+					fieldDataValues[key] = fieldValue
+				}
+			}
+		}
+
+		encodedData, _ := json.Marshal(MapsMerge(tagDataValues, fieldDataValues))
+
+		item := InsertRow{
+			timestampFormatted: timestampFormatted,
+			encodedData:        encodedData,
+			fieldColumnValues:  fieldColumnValues,
+			tagColumnValues:    tagColumnValues,
+		}
+
+		insertRows = append(insertRows, item)
+	}
+
+	var baseColumns []string = []string{"time", "data"}
+	targetTable := measurementConfig.TargetTable
+
+	allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
+
+	var c []string
+
+	for _, value := range allColumns {
+		c = append(c, value)
+	}
+
+	columnsSQLStr := strings.Join(c, ",")
+
+	var a []string = CreateBindParameterList(1, len(allColumns))
+
+	var placeholdersSQLStr = strings.Join(a, ",")
+
+	sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
+
+	return sql, insertRows, nil
+
 }
 
 func insertRows(insertQuery string, transformedInput []InsertRow, config Configuration) error {
