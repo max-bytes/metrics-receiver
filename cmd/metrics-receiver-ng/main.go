@@ -95,12 +95,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	insertErr := insertRows(rows, config)
+	if len(rows) > 0 {
+		insertErr := insertRows(rows, config)
 
-	if insertErr != nil {
-		log.Println(insertErr)
-		http.Error(w, insertErr.Error(), http.StatusBadRequest)
-		return
+		if insertErr != nil {
+			log.Println(insertErr)
+			http.Error(w, insertErr.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -150,7 +152,7 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 		var measurementConfig = config.Measurements[measurement]
 
 		if measurementConfig.Ignore {
-			return nil, nil
+			continue
 		}
 
 		var tagsAsColumns = measurementConfig.TagsAsColumns
