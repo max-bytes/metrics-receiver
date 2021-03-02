@@ -146,7 +146,7 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 		var measurement = input.measurement
 
 		if _, ok := config.Measurements[measurement]; ok == false {
-			return nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
+			return nil, errors.New(fmt.Sprintf("Unknown measurement \"%s\" encountered", measurement))
 		}
 
 		var measurementConfig = config.Measurements[measurement]
