@@ -257,7 +257,7 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 
 		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
 
-		rows = append(rows, DBRow{sql, insertRows})
+		rows = append(rows, DBRow{sql, insertRows, targetTable})
 	}
 
 	return rows, nil
@@ -286,7 +286,7 @@ func insertRows(rows []DBRow, config Configuration) error {
 
 	for _, row := range rows {
 
-		stmt, prepareErr := tx.Prepare("insert_query", row.InsertQuery)
+		stmt, prepareErr := tx.Prepare(fmt.Sprintf("insert_query_%v", row.TargetTable), row.InsertQuery)
 		if prepareErr != nil {
 			log.Println(prepareErr)
 			tx.Rollback()
@@ -339,6 +339,7 @@ type InsertRow struct {
 type DBRow struct {
 	InsertQuery string
 	InsertRows  []InsertRow
+	TargetTable string
 }
 
 type Configuration struct {
