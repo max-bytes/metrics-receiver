@@ -41,11 +41,11 @@ func main() {
 	}
 	json.Unmarshal(byteValue, &config)
 
-	http.HandleFunc("/influx/v1/write", influxWriteHandler)
-	http.HandleFunc("/influx/v1/query", influxQueryHandler)
+	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
+	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
 
-	fmt.Printf("Starting server at port 8080\n")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Printf("Starting server at port 80\n")
+	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -85,9 +85,9 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var a = measurementSplitter(res)
+	var splittedRows = measurementSplitter(res)
 
-	var sql, insertedRows, buildDBRowsErr = buildDBRows(a, config)
+	var rows, buildDBRowsErr = buildDBRows(splittedRows, config)
 
 	if buildDBRowsErr != nil {
 		log.Println(buildDBRowsErr)
@@ -95,12 +95,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	insertErr := insertRows(sql, insertedRows, config)
+	if len(rows) > 0 {
+		insertErr := insertRows(rows, config)
 
-	if insertErr != nil {
-		log.Println(insertErr)
-		http.Error(w, insertErr.Error(), http.StatusBadRequest)
-		return
+		if insertErr != nil {
+			log.Println(insertErr)
+			http.Error(w, insertErr.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -136,20 +138,21 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
-	for _, input := range i {
+func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
+	var rows []DBRow
 
+	for _, input := range i {
 		var points = input.points
 		var measurement = input.measurement
 
 		if _, ok := config.Measurements[measurement]; ok == false {
-			return "", nil, errors.New("Unknown measurement \"{$measurement}\" encountered")
+			return nil, errors.New(fmt.Sprintf("Unknown measurement \"%s\" encountered", measurement))
 		}
 
 		var measurementConfig = config.Measurements[measurement]
 
 		if measurementConfig.Ignore {
-			return "", nil, nil
+			continue
 		}
 
 		var tagsAsColumns = measurementConfig.TagsAsColumns
@@ -187,6 +190,8 @@ func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
 			for _, v := range tagsAsColumns {
 				if _, ok := tags[v]; ok {
 					tagColumnValues = append(tagColumnValues, tags[v])
+				} else {
+					tagColumnValues = append(tagColumnValues, nil)
 				}
 			}
 
@@ -206,6 +211,8 @@ func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
 			for _, v := range fieldsAsColumns {
 				if _, ok := fields[v]; ok {
 					fieldColumnValues = append(fieldColumnValues, fields[v])
+				} else {
+					fieldColumnValues = append(fieldColumnValues, nil)
 				}
 			}
 
@@ -250,14 +257,13 @@ func buildDBRows(i []Ret, config Configuration) (string, []InsertRow, error) {
 
 		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
 
-		return sql, insertRows, nil
+		rows = append(rows, DBRow{sql, insertRows, targetTable})
 	}
 
-	return "", nil, nil
+	return rows, nil
 }
 
-func insertRows(insertQuery string, transformedInput []InsertRow, config Configuration) error {
-
+func insertRows(rows []DBRow, config Configuration) error {
 	var c, parseErr = pgx.ParseConnectionString(config.TimescaleConnectionString)
 	if parseErr != nil {
 		log.Fatal(parseErr)
@@ -278,31 +284,33 @@ func insertRows(insertQuery string, transformedInput []InsertRow, config Configu
 		return beginErr
 	}
 
-	stmt, prepareErr := tx.Prepare("insert_query", insertQuery)
-	if prepareErr != nil {
-		log.Println(prepareErr)
-		tx.Rollback()
-		return prepareErr
-	}
+	for _, row := range rows {
 
-	for _, ti := range transformedInput {
-
-		var a []interface{}
-
-		a = append(a, ti.timestampFormatted)
-		a = append(a, ti.encodedData)
-		for _, val := range ti.fieldColumnValues {
-			a = append(a, val)
-		}
-		for _, val := range ti.tagColumnValues {
-			a = append(a, val)
-		}
-
-		_, insertErr := tx.Exec(stmt.SQL, a...)
-		if insertErr != nil {
-			log.Println(insertErr)
+		stmt, prepareErr := tx.Prepare(fmt.Sprintf("insert_query_%v", row.TargetTable), row.InsertQuery)
+		if prepareErr != nil {
+			log.Println(prepareErr)
 			tx.Rollback()
-			return insertErr
+			return prepareErr
+		}
+		for _, ti := range row.InsertRows {
+
+			var a []interface{}
+
+			a = append(a, ti.timestampFormatted)
+			a = append(a, ti.encodedData)
+			for _, val := range ti.fieldColumnValues {
+				a = append(a, val)
+			}
+			for _, val := range ti.tagColumnValues {
+				a = append(a, val)
+			}
+
+			_, insertErr := tx.Exec(stmt.SQL, a...)
+			if insertErr != nil {
+				log.Println(insertErr)
+				tx.Rollback()
+				return insertErr
+			}
 		}
 	}
 
@@ -326,6 +334,12 @@ type InsertRow struct {
 	encodedData        []byte
 	fieldColumnValues  []interface{}
 	tagColumnValues    []interface{}
+}
+
+type DBRow struct {
+	InsertQuery string
+	InsertRows  []InsertRow
+	TargetTable string
 }
 
 type Configuration struct {

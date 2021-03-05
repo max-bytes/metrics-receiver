@@ -16,7 +16,7 @@ func Parse(input string) ([]Point, error) {
 	var ret []Point
 
 	for _, line := range lines {
-		if line == " " {
+		if line == "" {
 			continue
 		}
 
@@ -216,9 +216,12 @@ func ParsePoint(line string) (Point, error) {
 				value = floatVal
 				fieldSet[key] = value.(float64)
 			} else if rf.MatchString(value.(string)) {
-				m := rf.FindAllString(value.(string), 1)
-				v, _ := strconv.ParseInt(m[1], 0, 64)
+				m := rf.FindStringSubmatch(value.(string))
+				v, e := strconv.ParseInt(m[1], 10, 64)
 				value = v
+				if e != nil {
+					return Point{}, e
+				}
 				fieldSet[key] = value.(int64)
 			} else {
 				fieldSet[key] = value.(string)

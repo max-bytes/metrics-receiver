@@ -1,10 +1,15 @@
 {
     "timescaleConnectionString": "host=localhost port=5432 dbname=metrics user=postgres password=postgres sslmode=disable",
     "measurements": {
-        "value": {
+        "metric": {
             "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
-            "tagsAsColumns": ["host", "service", "label", "uom"],
+            "tagsAsColumns": ["host", "service", "label", "uom", "ciname", "ciid", "monitoringprofile", "customer"],
             "targetTable": "metric"
+        },
+        "state": {
+            "fieldsAsColumns": ["value"],
+            "tagsAsColumns": ["host", "service", "ciname", "ciid", "monitoringprofile", "customer"],
+            "targetTable": "state"
         },
         "rabbitmq_exchange": {
             "addedTags": {

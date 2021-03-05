@@ -69,3 +69,18 @@ func TestIncorrectString(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestIntValue(t *testing.T) {
+
+	lines := []string{
+		"value,label=state,customer=stark,host=xyz.com,service=test-service value=0i 1613985840702344400", // escaped "=" everywhere
+	}
+
+	actual, _ := Parse(strings.Join(lines, "\n"))
+
+	expected := []Point{
+		{"value", map[string]interface{}{`value`: int64(0)}, map[string]string{`label`: `state`, "customer": `stark`, `host`: `xyz.com`, `service`: `test-service`}, "1613985840702344400"},
+	}
+
+	assert.Equal(t, actual, expected, "The two objects should be the same.")
+}
