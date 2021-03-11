@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go"
 	"github.com/jackc/pgx"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
 )
@@ -44,8 +46,8 @@ func main() {
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
 
-	fmt.Printf("Starting server at port 80\n")
-	if err := http.ListenAndServe(":80", nil); err != nil {
+	fmt.Printf("Starting server at port %d\n", config.Port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", config.Port), nil); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -87,21 +89,49 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	var splittedRows = measurementSplitter(res)
 
-	var rows, buildDBRowsErr = buildDBRows(splittedRows, config)
+	// timescaledb outputs
+	for _, output := range config.OutputsTimescale {
+		var rows, buildDBRowsErr = buildDBRowsTimescale(splittedRows, output)
 
-	if buildDBRowsErr != nil {
-		log.Println(buildDBRowsErr)
-		http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
-		return
+		if buildDBRowsErr != nil {
+			log.Println(buildDBRowsErr)
+			http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
+			return
+		}
+
+		if len(rows) > 0 {
+			insertErr := insertRowsTimescale(rows, output)
+
+			if output.WriteStrategy == "commit" {
+				if insertErr != nil {
+					log.Println(insertErr)
+					http.Error(w, insertErr.Error(), http.StatusBadRequest)
+					return
+				}
+			}
+
+		}
 	}
 
-	if len(rows) > 0 {
-		insertErr := insertRows(rows, config)
+	// influxdb outputs
+	for _, output := range config.OutputsInflux {
+		var rows, buildDBRowsErr = buildDBRowsInflux(splittedRows, output)
 
-		if insertErr != nil {
-			log.Println(insertErr)
-			http.Error(w, insertErr.Error(), http.StatusBadRequest)
+		if buildDBRowsErr != nil {
+			log.Println(buildDBRowsErr)
+			http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
 			return
+		}
+
+		if len(rows) > 0 {
+			insertErr := insertRowsInflux(rows, output)
+			if output.WriteStrategy == "commit" {
+				if insertErr != nil {
+					log.Println(insertErr)
+					http.Error(w, insertErr.Error(), http.StatusBadRequest)
+					return
+				}
+			}
 		}
 	}
 
@@ -138,9 +168,8 @@ func measurementSplitter(input []influx.Point) []Ret {
 	return r
 }
 
-func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
+func buildDBRowsTimescale(i []Ret, config OutputTimescale) ([]DBRow, error) {
 	var rows []DBRow
-
 	for _, input := range i {
 		var points = input.points
 		var measurement = input.measurement
@@ -166,6 +195,8 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 
 		var insertRows []InsertRow
 
+		points = filterPoints(points, config)
+
 		for _, point := range points {
 
 			var timestamp time.Time
@@ -185,6 +216,7 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 					tags[k] = v
 				}
 			}
+
 			var tagColumnValues []interface{}
 
 			for _, v := range tagsAsColumns {
@@ -263,8 +295,87 @@ func buildDBRows(i []Ret, config Configuration) ([]DBRow, error) {
 	return rows, nil
 }
 
-func insertRows(rows []DBRow, config Configuration) error {
-	var c, parseErr = pgx.ParseConnectionString(config.TimescaleConnectionString)
+func buildDBRowsInflux(i []Ret, config OutputInflux) ([]InfluxPoint, error) {
+	var writePoints []InfluxPoint
+	for _, input := range i {
+		var points = input.points
+		var measurement = input.measurement
+
+		if _, ok := config.Measurements[measurement]; ok == false {
+			return nil, errors.New(fmt.Sprintf("Unknown measurement \"%s\" encountered", measurement))
+		}
+
+		var measurementConfig = config.Measurements[measurement]
+
+		if measurementConfig.Ignore {
+			continue
+		}
+
+		var addedTags map[string]string = nil
+
+		if measurementConfig.AddedTags != nil {
+			addedTags = measurementConfig.AddedTags
+		}
+
+		points = filterPoints(points, config)
+
+		for _, point := range points {
+
+			var timestamp time.Time
+			if point.Timestamp != "" {
+				t, _ := strconv.Atoi(point.Timestamp)
+				timestamp = time.Unix(0, int64(t))
+			} else {
+				timestamp = time.Now()
+			}
+
+			var tags = point.Tags
+
+			if addedTags != nil {
+				for k, v := range addedTags {
+					tags[k] = v
+				}
+			}
+
+			writePoints = append(writePoints, InfluxPoint{measurement,
+				point.Fields,
+				tags,
+				timestamp})
+
+		}
+	}
+
+	return writePoints, nil
+}
+
+func insertRowsInflux(writePoints []InfluxPoint, config OutputInflux) error {
+
+	// create new client with default option for server url authenticate by token
+	client := influxdb2.NewClient(config.Connection, config.AuthToken)
+
+	// user blocking write client for writes to desired bucket
+	writeAPI := client.WriteAPIBlocking(config.Org, config.DbName)
+
+	for _, p := range writePoints {
+		p1 := influxdb2.NewPoint(p.Measurement,
+			p.Tags,
+			p.Fields,
+			p.Timestamp)
+
+		err := writeAPI.WritePoint(context.Background(), p1)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+	}
+
+	// Ensures background processes finish
+	client.Close()
+	return nil
+}
+
+func insertRowsTimescale(rows []DBRow, config OutputTimescale) error {
+	var c, parseErr = pgx.ParseConnectionString(config.Connection)
 	if parseErr != nil {
 		log.Fatal(parseErr)
 		return parseErr
@@ -308,7 +419,6 @@ func insertRows(rows []DBRow, config Configuration) error {
 			_, insertErr := tx.Exec(stmt.SQL, a...)
 			if insertErr != nil {
 				log.Println(insertErr)
-				tx.Rollback()
 				return insertErr
 			}
 		}
@@ -324,9 +434,73 @@ func insertRows(rows []DBRow, config Configuration) error {
 	return nil
 }
 
+func filterPoints(points []influx.Point, c interface{}) []influx.Point {
+
+	var tagfilterInclude map[string][]string = make(map[string][]string)
+	var tagfilterBlock map[string][]string = make(map[string][]string)
+	switch v := c.(type) {
+	case OutputInflux:
+		tagfilterInclude = v.TagfilterInclude
+		tagfilterBlock = v.TagfilterBlock
+	case OutputTimescale:
+		tagfilterInclude = v.TagfilterInclude
+		tagfilterBlock = v.TagfilterBlock
+	default:
+		fmt.Printf("I don't know about type %T!\n", v)
+	}
+
+	var filteredPoints []influx.Point
+	if len(tagfilterInclude) == 0 {
+		// no filtering
+		filteredPoints = points
+	} else {
+		for _, point := range points {
+			for tagKey, tagValue := range point.Tags {
+				if _, ok := tagfilterInclude[tagKey]; ok == true {
+					for _, v := range tagfilterInclude[tagKey] {
+						if v == "*" || tagValue == v {
+							filteredPoints = append(filteredPoints, point)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var keysToDelete []int
+	for pointKey, point := range filteredPoints {
+		for tagKey, tagValue := range point.Tags {
+			if _, ok := tagfilterBlock[tagKey]; ok == true {
+				for _, v := range tagfilterBlock[tagKey] {
+					if v == "*" || tagValue == v {
+						// index of the value to remove from points array
+						keysToDelete = append(keysToDelete, pointKey)
+					}
+				}
+			}
+		}
+	}
+
+	var result []influx.Point
+	for pointKey := range filteredPoints {
+		if Contains(keysToDelete, pointKey) == false {
+			result = append(result, filteredPoints[pointKey])
+		}
+	}
+
+	return result
+}
+
 type Ret struct {
 	measurement string
 	points      []influx.Point
+}
+
+type InfluxPoint struct {
+	Measurement string
+	Fields      map[string]interface{}
+	Tags        map[string]string
+	Timestamp   time.Time
 }
 
 type InsertRow struct {
@@ -343,8 +517,28 @@ type DBRow struct {
 }
 
 type Configuration struct {
-	TimescaleConnectionString string                              `json:"timescaleConnectionString"`
-	Measurements              map[string]MeasurementConfiguration `json:"measurements"`
+	Port             int
+	OutputsTimescale []OutputTimescale `json:"outputs_timescaledb"`
+	OutputsInflux    []OutputInflux    `json:"outputs_influxdb"`
+}
+
+type OutputTimescale struct {
+	TagfilterInclude map[string][]string                 `json:"tagfilter_include"`
+	TagfilterBlock   map[string][]string                 `json:"tagfilter_block"`
+	WriteStrategy    string                              `json:"write_strategy"`
+	Measurements     map[string]MeasurementConfiguration `json:"measurements"`
+	Connection       string                              `json:"connection"`
+}
+
+type OutputInflux struct {
+	TagfilterInclude map[string][]string                 `json:"tagfilter_include"`
+	TagfilterBlock   map[string][]string                 `json:"tagfilter_block"`
+	WriteStrategy    string                              `json:"write_strategy"`
+	Measurements     map[string]MeasurementConfiguration `json:"measurements"`
+	Connection       string                              `json:"connection"`
+	DbName           string                              `json:"db_name"`
+	Org              string                              `json:"org"`
+	AuthToken        string                              `json:"auth_token"`
 }
 
 type MeasurementConfiguration struct {
@@ -383,4 +577,13 @@ func CreateBindParameterList(min, max int) []string {
 		a[i] = "$" + strconv.Itoa(min+i)
 	}
 	return a
+}
+
+func Contains(s []int, e int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

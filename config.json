@@ -1,34 +1,375 @@
 {
-    "timescaleConnectionString": "host=localhost port=5432 dbname=metrics user=postgres password=postgres sslmode=disable",
-    "measurements": {
-        "metric": {
-            "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
-            "tagsAsColumns": ["host", "service", "label", "uom", "ciname", "ciid", "monitoringprofile", "customer"],
-            "targetTable": "metric"
+    "port": 8080,
+    "outputs_timescaledb": [
+    {
+        "tagfilter_include": {
+            "host": ["abc.com"]
         },
-        "state": {
-            "fieldsAsColumns": ["value"],
-            "tagsAsColumns": ["host", "service", "ciname", "ciid", "monitoringprofile", "customer"],
-            "targetTable": "state"
+        "tagfilter_block": {
+           "service": ["ABC"],
+           "customer": ["stark"]
         },
-        "rabbitmq_exchange": {
-            "addedTags": {
-                "measurement": "exchange"
+        "write_strategy": "commit",
+        "connection": "host=localhost port=55432 dbname=metrics user=postgres password=password sslmode=disable",
+        "measurements": {
+            "value": {
+                "fieldsAsColumns": [
+                    "value",
+                    "warn",
+                    "crit",
+                    "min",
+                    "max"
+                ],
+                "tagsAsColumns": [
+                    "host",
+                    "service",
+                    "label",
+                    "uom",
+                    "ciname",
+                    "ciid",
+                    "monitoringprofile",
+                    "customer"
+                ],
+                "targetTable": "metric"
             },
-            "fieldsAsColumns": [],
-            "tagsAsColumns": [],
-            "targetTable": "rabbitmq"
-        },
-        "rabbitmq_queue": {
-            "addedTags": {
-                "measurement": "queue"
+            "rabbitmq_exchange": {
+                "addedTags": {
+                    "measurement": "exchange"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "rabbitmq"
             },
-            "fieldsAsColumns": [],
-            "tagsAsColumns": [],
-            "targetTable": "rabbitmq"
-        },
-        "rabbitmq_node": {
-            "ignore": true
+            "rabbitmq_queue": {
+                "addedTags": {
+                    "measurement": "queue"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "rabbitmq"
+            },
+            "rabbitmq_overview": {
+                "addedTags": {
+                    "measurement": "overview"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "rabbitmq"
+            },
+            "rabbitmq_node": {
+                "addedTags": {
+                    "measurement": "node"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "rabbitmq"
+            },
+            "internal_memstats": {
+                "addedTags": {
+                    "measurement": "internal_memstats"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "internal_agent": {
+                "addedTags": {
+                    "measurement": "internal_agent"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "internal_gather": {
+                "ignore": true
+            },
+            "internal_write": {
+                "ignore": true
+            },
+            "cpu": {
+                "addedTags": {
+                    "measurement": "cpu"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "disk": {
+                "addedTags": {
+                    "measurement": "disk"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "diskio": {
+                "addedTags": {
+                    "measurement": "diskio"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "kernel_vmstat": {
+                "addedTags": {
+                    "measurement": "kernel_vmstat"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "mem": {
+                "addedTags": {
+                    "measurement": "mem"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "net": {
+                "addedTags": {
+                    "measurement": "net"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "nstat": {
+                "addedTags": {
+                    "measurement": "nstat"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "processes": {
+                "addedTags": {
+                    "measurement": "processes"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "procstat": {
+                "addedTags": {
+                    "measurement": "procstat"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "procstat_lookup": {
+                "addedTags": {
+                    "measurement": "procstat_lookup"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "swap": {
+                "addedTags": {
+                    "measurement": "swap"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            },
+            "system": {
+                "addedTags": {
+                    "measurement": "system"
+                },
+                "fieldsAsColumns": [],
+                "tagsAsColumns": [],
+                "targetTable": "telegraf"
+            }
         }
     }
+    ],
+    "outputs_influxdb":[
+        {
+            "tagfilter_include": {
+                "customer": ["mhx", "google"]
+            },
+            "tagfilter_block": {
+                "customer": ["mhx"]
+            },
+            "write_strategy": "best_effort",
+            "connection": "http://localhost:58086",
+            "db_name": "metric",
+            "org": "mhx",
+            "auth_token": "my-token",
+            "measurements": {
+                "value": {
+                    "fieldsAsColumns": [
+                        "value",
+                        "warn",
+                        "crit",
+                        "min",
+                        "max"
+                    ],
+                    "tagsAsColumns": [
+                        "host",
+                        "service",
+                        "label",
+                        "uom",
+                        "ciname",
+                        "ciid",
+                        "monitoringprofile",
+                        "customer"
+                    ],
+                    "targetTable": "metric"
+                },
+                "rabbitmq_exchange": {
+                    "addedTags": {
+                        "measurement": "exchange"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_queue": {
+                    "addedTags": {
+                        "measurement": "queue"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_overview": {
+                    "addedTags": {
+                        "measurement": "overview"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_node": {
+                    "addedTags": {
+                        "measurement": "node"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "internal_memstats": {
+                    "addedTags": {
+                        "measurement": "internal_memstats"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "internal_agent": {
+                    "addedTags": {
+                        "measurement": "internal_agent"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "internal_gather": {
+                    "ignore": true
+                },
+                "internal_write": {
+                    "ignore": true
+                },
+                "cpu": {
+                    "addedTags": {
+                        "measurement": "cpu"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "disk": {
+                    "addedTags": {
+                        "measurement": "disk"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "diskio": {
+                    "addedTags": {
+                        "measurement": "diskio"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "kernel_vmstat": {
+                    "addedTags": {
+                        "measurement": "kernel_vmstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "mem": {
+                    "addedTags": {
+                        "measurement": "mem"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "net": {
+                    "addedTags": {
+                        "measurement": "net"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "nstat": {
+                    "addedTags": {
+                        "measurement": "nstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "processes": {
+                    "addedTags": {
+                        "measurement": "processes"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "procstat": {
+                    "addedTags": {
+                        "measurement": "procstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "procstat_lookup": {
+                    "addedTags": {
+                        "measurement": "procstat_lookup"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "swap": {
+                    "addedTags": {
+                        "measurement": "swap"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "system": {
+                    "addedTags": {
+                        "measurement": "system"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                }
+            }
+        }
+    ]
 }
