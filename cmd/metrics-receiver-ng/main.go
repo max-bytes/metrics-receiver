@@ -111,18 +111,18 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// influxdb outputs
 	for _, output := range cfg.OutputsInflux {
-		var rows, buildDBRowsErr = buildDBRowsInflux(splittedRows, output)
+		var points, err = buildDBPointsInflux(splittedRows, output)
 
-		if buildDBRowsErr != nil {
-			log.Println(buildDBRowsErr)
+		if err != nil {
+			log.Println(err)
 			if output.WriteStrategy == "commit" {
 				http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
 				return
 			}
 		}
 
-		if len(rows) > 0 {
-			insertErr := insertRowsInflux(rows, output)
+		if len(points) > 0 {
+			insertErr := insertRowsInflux(points, output)
 			if output.WriteStrategy == "commit" {
 				if insertErr != nil {
 					log.Println(insertErr)
@@ -284,7 +284,7 @@ func buildDBRowsTimescale(i []Ret, config config.OutputTimescale) ([]DBRow, erro
 	return rows, nil
 }
 
-func buildDBRowsInflux(i []Ret, config config.OutputInflux) ([]influx.Point, error) {
+func buildDBPointsInflux(i []Ret, config config.OutputInflux) ([]influx.Point, error) {
 	var writePoints []influx.Point
 	for _, input := range i {
 		var points = input.points
