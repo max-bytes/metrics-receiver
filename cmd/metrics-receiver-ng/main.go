@@ -80,7 +80,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestStr := string(buf)
 
-	res, parseErr := influx.Parse(requestStr)
+	res, parseErr := influx.Parse(requestStr, time.Now())
 	if parseErr != nil {
 		log.Println(parseErr)
 		http.Error(w, "An error ocurred while parsing the provieded file!", http.StatusBadRequest)
@@ -95,16 +95,18 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 		if buildDBRowsErr != nil {
 			log.Println(buildDBRowsErr)
-			http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
-			return
+			if output.WriteStrategy == "commit" {
+				http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
+				return
+			}
 		}
 
 		if len(rows) > 0 {
 			insertErr := insertRowsTimescale(rows, output)
 
-			if output.WriteStrategy == "commit" {
-				if insertErr != nil {
-					log.Println(insertErr)
+			if insertErr != nil {
+				log.Println(insertErr)
+				if output.WriteStrategy == "commit" {
 					http.Error(w, insertErr.Error(), http.StatusBadRequest)
 					return
 				}
@@ -119,8 +121,10 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 		if buildDBRowsErr != nil {
 			log.Println(buildDBRowsErr)
-			http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
-			return
+			if output.WriteStrategy == "commit" {
+				http.Error(w, "An error ocurred while building db rows!", http.StatusBadRequest)
+				return
+			}
 		}
 
 		if len(rows) > 0 {
@@ -198,16 +202,7 @@ func buildDBRowsTimescale(i []Ret, config OutputTimescale) ([]DBRow, error) {
 		points = filterPoints(points, config)
 
 		for _, point := range points {
-
-			var timestamp time.Time
-			if point.Timestamp != "" {
-				t, _ := strconv.Atoi(point.Timestamp)
-				timestamp = time.Unix(0, int64(t))
-			} else {
-				timestamp = time.Now()
-			}
-
-			var timestampFormatted = timestamp.Format("2006-01-02 03:04:05.000 MST")
+			var timestampFormatted = point.Timestamp.Format("2006-01-02 03:04:05.000 MST")
 
 			var tags = point.Tags
 
@@ -295,8 +290,8 @@ func buildDBRowsTimescale(i []Ret, config OutputTimescale) ([]DBRow, error) {
 	return rows, nil
 }
 
-func buildDBRowsInflux(i []Ret, config OutputInflux) ([]InfluxPoint, error) {
-	var writePoints []InfluxPoint
+func buildDBRowsInflux(i []Ret, config OutputInflux) ([]influx.Point, error) {
+	var writePoints []influx.Point
 	for _, input := range i {
 		var points = input.points
 		var measurement = input.measurement
@@ -321,14 +316,6 @@ func buildDBRowsInflux(i []Ret, config OutputInflux) ([]InfluxPoint, error) {
 
 		for _, point := range points {
 
-			var timestamp time.Time
-			if point.Timestamp != "" {
-				t, _ := strconv.Atoi(point.Timestamp)
-				timestamp = time.Unix(0, int64(t))
-			} else {
-				timestamp = time.Now()
-			}
-
 			var tags = point.Tags
 
 			if addedTags != nil {
@@ -337,10 +324,11 @@ func buildDBRowsInflux(i []Ret, config OutputInflux) ([]InfluxPoint, error) {
 				}
 			}
 
-			writePoints = append(writePoints, InfluxPoint{measurement,
-				point.Fields,
-				tags,
-				timestamp})
+			writePoints = append(writePoints, influx.Point{
+				Measurement: measurement,
+				Fields:      point.Fields,
+				Tags:        tags,
+				Timestamp:   point.Timestamp})
 
 		}
 	}
@@ -348,7 +336,7 @@ func buildDBRowsInflux(i []Ret, config OutputInflux) ([]InfluxPoint, error) {
 	return writePoints, nil
 }
 
-func insertRowsInflux(writePoints []InfluxPoint, config OutputInflux) error {
+func insertRowsInflux(writePoints []influx.Point, config OutputInflux) error {
 
 	// create new client with default option for server url authenticate by token
 	client := influxdb2.NewClient(config.Connection, config.AuthToken)
@@ -364,7 +352,6 @@ func insertRowsInflux(writePoints []InfluxPoint, config OutputInflux) error {
 
 		err := writeAPI.WritePoint(context.Background(), p1)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 	}
@@ -377,21 +364,19 @@ func insertRowsInflux(writePoints []InfluxPoint, config OutputInflux) error {
 func insertRowsTimescale(rows []DBRow, config OutputTimescale) error {
 	var c, parseErr = pgx.ParseConnectionString(config.Connection)
 	if parseErr != nil {
-		log.Fatal(parseErr)
 		return parseErr
 	}
 
 	conn, connErr := pgx.Connect(c)
 	if connErr != nil {
-		log.Fatal(connErr)
 		return connErr
 	}
 	defer conn.Close()
 
 	tx, beginErr := conn.Begin()
+	defer tx.Rollback()
 
 	if beginErr != nil {
-		log.Println(beginErr)
 		return beginErr
 	}
 
@@ -399,8 +384,6 @@ func insertRowsTimescale(rows []DBRow, config OutputTimescale) error {
 
 		stmt, prepareErr := tx.Prepare(fmt.Sprintf("insert_query_%v", row.TargetTable), row.InsertQuery)
 		if prepareErr != nil {
-			log.Println(prepareErr)
-			tx.Rollback()
 			return prepareErr
 		}
 		for _, ti := range row.InsertRows {
@@ -418,7 +401,6 @@ func insertRowsTimescale(rows []DBRow, config OutputTimescale) error {
 
 			_, insertErr := tx.Exec(stmt.SQL, a...)
 			if insertErr != nil {
-				log.Println(insertErr)
 				return insertErr
 			}
 		}
@@ -426,8 +408,6 @@ func insertRowsTimescale(rows []DBRow, config OutputTimescale) error {
 
 	err := tx.Commit()
 	if err != nil {
-		log.Println(err)
-		tx.Rollback()
 		return err
 	}
 
@@ -499,13 +479,6 @@ func filterPoints(points []influx.Point, c interface{}) []influx.Point {
 type Ret struct {
 	measurement string
 	points      []influx.Point
-}
-
-type InfluxPoint struct {
-	Measurement string
-	Fields      map[string]interface{}
-	Tags        map[string]string
-	Timestamp   time.Time
 }
 
 type InsertRow struct {

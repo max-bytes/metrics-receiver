@@ -6,9 +6,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-func Parse(input string) ([]Point, error) {
+func Parse(input string, currentTimestamp time.Time) ([]Point, error) {
 
 	input = strings.ReplaceAll(input, "\r", "")
 
@@ -24,7 +25,7 @@ func Parse(input string) ([]Point, error) {
 			continue
 		}
 
-		point, error := ParsePoint(line)
+		point, error := ParsePoint(line, currentTimestamp)
 
 		if error != nil {
 			return nil, error
@@ -36,7 +37,7 @@ func Parse(input string) ([]Point, error) {
 	return ret, nil
 }
 
-func ParsePoint(line string) (Point, error) {
+func ParsePoint(line string, currentTime time.Time) (Point, error) {
 	const ESCAPEDSPACE = "___ESCAPEDSPACE___"
 	const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
 	const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
@@ -63,7 +64,7 @@ func ParsePoint(line string) (Point, error) {
 
 	measurementAndTagsStr := ""
 	fieldSetStr := ""
-	timestamp := ""
+	timestampStr := ""
 
 	if r1.MatchString(line) {
 		tokens := r1.FindStringSubmatch(line)
@@ -77,7 +78,7 @@ func ParsePoint(line string) (Point, error) {
 		}
 
 		if len(tokens) > 3 {
-			timestamp = tokens[3]
+			timestampStr = tokens[3]
 		}
 	} else if r2.MatchString(line) {
 		tokens := r2.FindStringSubmatch(line)
@@ -91,7 +92,7 @@ func ParsePoint(line string) (Point, error) {
 		}
 
 		if len(tokens) > 3 {
-			timestamp = tokens[3]
+			timestampStr = tokens[3]
 		}
 	} else {
 		// invalid number of tokens
@@ -229,6 +230,15 @@ func ParsePoint(line string) (Point, error) {
 		}
 	}
 
+	// build a proper timestamp: parse if set, set to current time if not set
+	var timestamp time.Time
+	if timestampStr != "" {
+		t, _ := strconv.Atoi(timestampStr)
+		timestamp = time.Unix(0, int64(t))
+	} else {
+		timestamp = currentTime
+	}
+
 	return Point{measurement, fieldSet, tagSet, timestamp}, nil
 }
 
@@ -243,7 +253,7 @@ func ArrayShift(s *[]string) string {
 }
 
 func index(slice []string, item string) int {
-	for i, _ := range slice {
+	for i := range slice {
 		if slice[i] == item {
 			return i
 		}
