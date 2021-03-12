@@ -455,11 +455,13 @@ func filterPoints(points []influx.Point, c interface{}) []influx.Point {
 		filteredPoints = points
 	} else {
 		for _, point := range points {
+		outInclude:
 			for tagKey, tagValue := range point.Tags {
 				if _, ok := tagfilterInclude[tagKey]; ok == true {
 					for _, v := range tagfilterInclude[tagKey] {
 						if v == "*" || tagValue == v {
 							filteredPoints = append(filteredPoints, point)
+							break outInclude
 						}
 					}
 				}
@@ -469,12 +471,15 @@ func filterPoints(points []influx.Point, c interface{}) []influx.Point {
 
 	var keysToDelete []int
 	for pointKey, point := range filteredPoints {
+
+	outBlock:
 		for tagKey, tagValue := range point.Tags {
 			if _, ok := tagfilterBlock[tagKey]; ok == true {
 				for _, v := range tagfilterBlock[tagKey] {
 					if v == "*" || tagValue == v {
 						// index of the value to remove from points array
 						keysToDelete = append(keysToDelete, pointKey)
+						break outBlock
 					}
 				}
 			}
