@@ -37,11 +37,11 @@ type Tagfilter interface {
 }
 
 type OutputTimescale struct {
-	TagfilterInclude map[string][]string                 `json:"tagfilter_include"`
-	TagfilterBlock   map[string][]string                 `json:"tagfilter_block"`
-	WriteStrategy    string                              `json:"write_strategy"`
-	Measurements     map[string]MeasurementConfiguration `json:"measurements"`
-	Connection       string                              `json:"connection"`
+	TagfilterInclude map[string][]string             `json:"tagfilter_include"`
+	TagfilterBlock   map[string][]string             `json:"tagfilter_block"`
+	WriteStrategy    string                          `json:"write_strategy"`
+	Measurements     map[string]MeasurementTimescale `json:"measurements"`
+	Connection       string                          `json:"connection"`
 }
 
 func (c *OutputTimescale) GetTagfilterInclude() map[string][]string {
@@ -52,14 +52,14 @@ func (c *OutputTimescale) GetTagfilterBlock() map[string][]string {
 }
 
 type OutputInflux struct {
-	TagfilterInclude map[string][]string                 `json:"tagfilter_include"`
-	TagfilterBlock   map[string][]string                 `json:"tagfilter_block"`
-	WriteStrategy    string                              `json:"write_strategy"`
-	Measurements     map[string]MeasurementConfiguration `json:"measurements"`
-	Connection       string                              `json:"connection"`
-	DbName           string                              `json:"db_name"`
-	Org              string                              `json:"org"`
-	AuthToken        string                              `json:"auth_token"`
+	TagfilterInclude map[string][]string          `json:"tagfilter_include"`
+	TagfilterBlock   map[string][]string          `json:"tagfilter_block"`
+	WriteStrategy    string                       `json:"write_strategy"`
+	Measurements     map[string]MeasurementInflux `json:"measurements"`
+	Connection       string                       `json:"connection"`
+	DbName           string                       `json:"db_name"`
+	Org              string                       `json:"org"`
+	AuthToken        string                       `json:"auth_token"`
 }
 
 func (c *OutputInflux) GetTagfilterInclude() map[string][]string {
@@ -69,10 +69,15 @@ func (c *OutputInflux) GetTagfilterBlock() map[string][]string {
 	return c.TagfilterBlock
 }
 
-type MeasurementConfiguration struct {
+type MeasurementTimescale struct {
 	AddedTags       map[string]string
 	FieldsAsColumns []string
 	TagsAsColumns   []string
 	TargetTable     string
 	Ignore          bool
+}
+
+type MeasurementInflux struct {
+	AddedTags map[string]string
+	Ignore    bool
 }

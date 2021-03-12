@@ -200,72 +200,18 @@
             "auth_token": "my-token",
             "measurements": {
                 "value": {
-                    "fieldsAsColumns": [
-                        "value",
-                        "warn",
-                        "crit",
-                        "min",
-                        "max"
-                    ],
-                    "tagsAsColumns": [
-                        "host",
-                        "service",
-                        "label",
-                        "uom",
-                        "ciname",
-                        "ciid",
-                        "monitoringprofile",
-                        "customer"
-                    ],
-                    "targetTable": "metric"
                 },
                 "rabbitmq_exchange": {
-                    "addedTags": {
-                        "measurement": "exchange"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "rabbitmq"
                 },
                 "rabbitmq_queue": {
-                    "addedTags": {
-                        "measurement": "queue"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "rabbitmq"
                 },
                 "rabbitmq_overview": {
-                    "addedTags": {
-                        "measurement": "overview"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "rabbitmq"
                 },
                 "rabbitmq_node": {
-                    "addedTags": {
-                        "measurement": "node"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "rabbitmq"
                 },
                 "internal_memstats": {
-                    "addedTags": {
-                        "measurement": "internal_memstats"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "internal_agent": {
-                    "addedTags": {
-                        "measurement": "internal_agent"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "internal_gather": {
                     "ignore": true
@@ -274,100 +220,28 @@
                     "ignore": true
                 },
                 "cpu": {
-                    "addedTags": {
-                        "measurement": "cpu"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "disk": {
-                    "addedTags": {
-                        "measurement": "disk"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "diskio": {
-                    "addedTags": {
-                        "measurement": "diskio"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "kernel_vmstat": {
-                    "addedTags": {
-                        "measurement": "kernel_vmstat"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "mem": {
-                    "addedTags": {
-                        "measurement": "mem"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "net": {
-                    "addedTags": {
-                        "measurement": "net"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "nstat": {
-                    "addedTags": {
-                        "measurement": "nstat"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "processes": {
-                    "addedTags": {
-                        "measurement": "processes"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "procstat": {
-                    "addedTags": {
-                        "measurement": "procstat"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "procstat_lookup": {
-                    "addedTags": {
-                        "measurement": "procstat_lookup"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "swap": {
-                    "addedTags": {
-                        "measurement": "swap"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 },
                 "system": {
-                    "addedTags": {
-                        "measurement": "system"
-                    },
-                    "fieldsAsColumns": [],
-                    "tagsAsColumns": [],
-                    "targetTable": "telegraf"
                 }
             }
         }
