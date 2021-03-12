@@ -80,7 +80,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
-		err := timescale.Write(splittedRows, outputConfig)
+		err := timescale.Write(splittedRows, &outputConfig)
 
 		if err != nil {
 			log.Println(err)
@@ -93,7 +93,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
-		err := influx.Write(splittedRows, outputConfig)
+		err := influx.Write(splittedRows, &outputConfig)
 
 		if err != nil {
 			log.Println(err)

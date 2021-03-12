@@ -10,7 +10,7 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config config.OutputInflux) error {
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) error {
 	var points, err = buildDBPointsInflux(groupedPoints, config)
 
 	if err != nil {
@@ -26,7 +26,7 @@ func Write(groupedPoints []general.PointGroup, config config.OutputInflux) error
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, config config.OutputInflux) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
@@ -72,7 +72,7 @@ func buildDBPointsInflux(i []general.PointGroup, config config.OutputInflux) ([]
 	return writePoints, nil
 }
 
-func insertRowsInflux(writePoints []general.Point, config config.OutputInflux) error {
+func insertRowsInflux(writePoints []general.Point, config *config.OutputInflux) error {
 
 	// create new client with default option for server url authenticate by token
 	client := influxdb2.NewClient(config.Connection, config.AuthToken)

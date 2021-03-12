@@ -31,12 +31,24 @@ type Configuration struct {
 	OutputsInflux    []OutputInflux    `json:"outputs_influxdb"`
 }
 
+type Tagfilter interface {
+	GetTagfilterInclude() map[string][]string
+	GetTagfilterBlock() map[string][]string
+}
+
 type OutputTimescale struct {
 	TagfilterInclude map[string][]string                 `json:"tagfilter_include"`
 	TagfilterBlock   map[string][]string                 `json:"tagfilter_block"`
 	WriteStrategy    string                              `json:"write_strategy"`
 	Measurements     map[string]MeasurementConfiguration `json:"measurements"`
 	Connection       string                              `json:"connection"`
+}
+
+func (c *OutputTimescale) GetTagfilterInclude() map[string][]string {
+	return c.TagfilterInclude
+}
+func (c *OutputTimescale) GetTagfilterBlock() map[string][]string {
+	return c.TagfilterBlock
 }
 
 type OutputInflux struct {
@@ -48,6 +60,13 @@ type OutputInflux struct {
 	DbName           string                              `json:"db_name"`
 	Org              string                              `json:"org"`
 	AuthToken        string                              `json:"auth_token"`
+}
+
+func (c *OutputInflux) GetTagfilterInclude() map[string][]string {
+	return c.TagfilterInclude
+}
+func (c *OutputInflux) GetTagfilterBlock() map[string][]string {
+	return c.TagfilterBlock
 }
 
 type MeasurementConfiguration struct {

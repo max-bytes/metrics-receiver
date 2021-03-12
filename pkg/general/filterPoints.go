@@ -1,26 +1,12 @@
 package general
 
 import (
-	"fmt"
-
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
 )
 
-func FilterPoints(points []Point, c interface{}) []Point {
+func FilterPoints(points []Point, c config.Tagfilter) []Point {
 
-	var tagfilterInclude map[string][]string = make(map[string][]string)
-	var tagfilterBlock map[string][]string = make(map[string][]string)
-	switch v := c.(type) {
-	case config.OutputInflux:
-		tagfilterInclude = v.TagfilterInclude
-		tagfilterBlock = v.TagfilterBlock
-	case config.OutputTimescale:
-		tagfilterInclude = v.TagfilterInclude
-		tagfilterBlock = v.TagfilterBlock
-	default:
-		fmt.Printf("I don't know about type %T!\n", v)
-	}
-
+	var tagfilterInclude map[string][]string = c.GetTagfilterInclude()
 	var filteredPoints []Point
 	if len(tagfilterInclude) == 0 {
 		// no filtering
@@ -41,9 +27,9 @@ func FilterPoints(points []Point, c interface{}) []Point {
 		}
 	}
 
+	var tagfilterBlock map[string][]string = c.GetTagfilterBlock()
 	var keysToDelete []int
 	for pointKey, point := range filteredPoints {
-
 	outBlock:
 		for tagKey, tagValue := range point.Tags {
 			if _, ok := tagfilterBlock[tagKey]; ok == true {

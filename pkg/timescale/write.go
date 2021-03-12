@@ -12,7 +12,7 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config config.OutputTimescale) error {
+func Write(groupedPoints []general.PointGroup, config *config.OutputTimescale) error {
 	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, config)
 
 	if buildDBRowsErr != nil {
@@ -28,7 +28,7 @@ func Write(groupedPoints []general.PointGroup, config config.OutputTimescale) er
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, config config.OutputTimescale) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
@@ -146,7 +146,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config config.OutputTimescale)
 	return rows, nil
 }
 
-func insertRowsTimescale(rows []TimescaleRows, config config.OutputTimescale) error {
+func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) error {
 	var c, parseErr = pgx.ParseConnectionString(config.Connection)
 	if parseErr != nil {
 		return parseErr
