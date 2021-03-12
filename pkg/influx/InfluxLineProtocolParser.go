@@ -7,14 +7,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Parse(input string, currentTimestamp time.Time) ([]Point, error) {
+func Parse(input string, currentTimestamp time.Time) ([]general.Point, error) {
 
 	input = strings.ReplaceAll(input, "\r", "")
 
 	lines := strings.Split(input, "\n")
-	var ret []Point
+	var ret []general.Point
 
 	for _, line := range lines {
 		if line == "" {
@@ -37,7 +39,7 @@ func Parse(input string, currentTimestamp time.Time) ([]Point, error) {
 	return ret, nil
 }
 
-func ParsePoint(line string, currentTime time.Time) (Point, error) {
+func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	const ESCAPEDSPACE = "___ESCAPEDSPACE___"
 	const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
 	const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
@@ -96,7 +98,7 @@ func ParsePoint(line string, currentTime time.Time) (Point, error) {
 		}
 	} else {
 		// invalid number of tokens
-		return Point{}, errors.New("invalid number of tokens")
+		return general.Point{}, errors.New("invalid number of tokens")
 	}
 
 	measurementAndTags := strings.Split(measurementAndTagsStr, ",")
@@ -221,7 +223,7 @@ func ParsePoint(line string, currentTime time.Time) (Point, error) {
 				v, e := strconv.ParseInt(m[1], 10, 64)
 				value = v
 				if e != nil {
-					return Point{}, e
+					return general.Point{}, e
 				}
 				fieldSet[key] = value.(int64)
 			} else {
@@ -239,7 +241,7 @@ func ParsePoint(line string, currentTime time.Time) (Point, error) {
 		timestamp = currentTime
 	}
 
-	return Point{measurement, fieldSet, tagSet, timestamp}, nil
+	return general.Point{Measurement: measurement, Fields: fieldSet, Tags: tagSet, Timestamp: timestamp}, nil
 }
 
 func ArrayShift(s *[]string) string {

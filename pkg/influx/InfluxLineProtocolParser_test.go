@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
 func TestBasicFunctionality(t *testing.T) {
@@ -17,10 +18,10 @@ func TestBasicFunctionality(t *testing.T) {
 	currentTime := time.Now()
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
-	expected := []Point{
-		{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, time.Unix(0, int64(1465839830100400200))},
-		{"weather", map[string]interface{}{"temperature": 82}, map[string]string{"location": "us-midwest"}, currentTime}, // make this nil
-		{"weather2", map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, map[string]string{"location": "us-midwest", "source": "test-source"}, time.Unix(0, int64(1465839830100400201))},
+	expected := []general.Point{
+		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: currentTime}, // make this nil
+		{Measurement: "weather2", Fields: map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, Tags: map[string]string{"location": "us-midwest", "source": "test-source"}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
@@ -35,9 +36,9 @@ func TestEscaping1(t *testing.T) {
 	currentTime := time.Now()
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
-	expected := []Point{
-		{"weat,he r", map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, map[string]string{`loc"ation, `: `us mid"west`}, time.Unix(0, int64(1465839830100400200))},
-		{`"weather"`, map[string]interface{}{`"temperature"`: 82}, map[string]string{`"location"`: `"us-midwest"`}, time.Unix(0, int64(1465839830100400200))},
+	expected := []general.Point{
+		{Measurement: "weat,he r", Fields: map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, Tags: map[string]string{`loc"ation, `: `us mid"west`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: `"weather"`, Fields: map[string]interface{}{`"temperature"`: 82}, Tags: map[string]string{`"location"`: `"us-midwest"`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
@@ -52,9 +53,9 @@ func TestEscaping2(t *testing.T) {
 	currentTime := time.Now()
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
-	expected := []Point{
-		{"weat=her", map[string]interface{}{`temperature_string`: `temp: hot`}, map[string]string{`location`: `us-midwest`}, time.Unix(0, int64(1465839830100400200))},
-		{"weat=her", map[string]interface{}{`temp=erature_string`: `temp=hot`}, map[string]string{`loc=ation`: `us-mi=dwest`}, time.Unix(0, int64(1465839830100400201))},
+	expected := []general.Point{
+		{Measurement: "weat=her", Fields: map[string]interface{}{`temperature_string`: `temp: hot`}, Tags: map[string]string{`location`: `us-midwest`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: "weat=her", Fields: map[string]interface{}{`temp=erature_string`: `temp=hot`}, Tags: map[string]string{`loc=ation`: `us-mi=dwest`}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
@@ -84,8 +85,8 @@ func TestIntValue(t *testing.T) {
 	currentTime := time.Now()
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
-	expected := []Point{
-		{"value", map[string]interface{}{`value`: int64(0)}, map[string]string{`label`: `state`, "customer": `stark`, `host`: `xyz.com`, `service`: `test-service`}, time.Unix(0, int64(1613985840702344400))},
+	expected := []general.Point{
+		{Measurement: "value", Fields: map[string]interface{}{`value`: int64(0)}, Tags: map[string]string{`label`: `state`, "customer": `stark`, `host`: `xyz.com`, `service`: `test-service`}, Timestamp: time.Unix(0, int64(1613985840702344400))},
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")

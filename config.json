@@ -188,7 +188,7 @@
     "outputs_influxdb":[
         {
             "tagfilter_include": {
-                "customer": ["mhx", "google"]
+                "customer": ["*"]
             },
             "tagfilter_block": {
                 "customer": ["mhx"]
