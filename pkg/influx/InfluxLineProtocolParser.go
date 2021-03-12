@@ -46,10 +46,10 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	const ESCAPEDDBLQUOTE = "___ESCAPEDDBLQUOTE___"
 	const ESCAPEDBACKSLASH = "___ESCAPEDBACKSLASH___"
 
-	re := regexp.MustCompile("\\\\ ")
+	re := regexp.MustCompile(`\\ `)
 	line = re.ReplaceAllString(line, ESCAPEDSPACE)
 
-	re = regexp.MustCompile("\\\\,")
+	re = regexp.MustCompile(`\\,`)
 	line = re.ReplaceAllString(line, ESCAPEDCOMMA)
 
 	re = regexp.MustCompile(`\\=`)
@@ -58,7 +58,7 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	re = regexp.MustCompile(`\\\"`)
 	line = re.ReplaceAllString(line, ESCAPEDDBLQUOTE)
 
-	re = regexp.MustCompile("\\\\\\\\")
+	re = regexp.MustCompile(`\\\\`)
 	line = re.ReplaceAllString(line, ESCAPEDBACKSLASH)
 
 	r1 := regexp.MustCompile("^(.*?) (.*) (.*)$")
@@ -252,13 +252,4 @@ func ArrayShift(s *[]string) string {
 	f := (*s)[0]
 	*s = (*s)[1:]
 	return f
-}
-
-func index(slice []string, item string) int {
-	for i := range slice {
-		if slice[i] == item {
-			return i
-		}
-	}
-	return -1
 }

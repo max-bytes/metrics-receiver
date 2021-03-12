@@ -2,7 +2,6 @@ package timescale
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,8 +33,8 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 		var points = input.Points
 		var measurement = input.Measurement
 
-		if _, ok := config.Measurements[measurement]; ok == false {
-			return nil, errors.New(fmt.Sprintf("Unknown measurement \"%s\" encountered", measurement))
+		if _, ok := config.Measurements[measurement]; !ok {
+			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
 
 		var measurementConfig = config.Measurements[measurement]
@@ -62,10 +61,8 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 			var tags = point.Tags
 
-			if addedTags != nil {
-				for k, v := range addedTags {
-					tags[k] = v
-				}
+			for k, v := range addedTags {
+				tags[k] = v
 			}
 
 			var tagColumnValues []interface{}
@@ -128,9 +125,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 		var c []string
 
-		for _, value := range allColumns {
-			c = append(c, value)
-		}
+		c = append(c, allColumns...)
 
 		columnsSQLStr := strings.Join(c, ",")
 
@@ -159,11 +154,10 @@ func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) e
 	defer conn.Close()
 
 	tx, beginErr := conn.Begin()
-	defer tx.Rollback()
-
 	if beginErr != nil {
 		return beginErr
 	}
+	defer tx.Rollback() //nolint: errcheck
 
 	for _, row := range rows {
 
@@ -177,12 +171,8 @@ func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) e
 
 			a = append(a, ti.timestampFormatted)
 			a = append(a, ti.encodedData)
-			for _, val := range ti.fieldColumnValues {
-				a = append(a, val)
-			}
-			for _, val := range ti.tagColumnValues {
-				a = append(a, val)
-			}
+			a = append(a, ti.fieldColumnValues...)
+			a = append(a, ti.tagColumnValues...)
 
 			_, insertErr := tx.Exec(stmt.SQL, a...)
 			if insertErr != nil {

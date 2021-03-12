@@ -15,7 +15,7 @@ func FilterPoints(points []Point, c config.Tagfilter) []Point {
 		for _, point := range points {
 		outInclude:
 			for tagKey, tagValue := range point.Tags {
-				if _, ok := tagfilterInclude[tagKey]; ok == true {
+				if _, ok := tagfilterInclude[tagKey]; ok {
 					for _, v := range tagfilterInclude[tagKey] {
 						if v == "*" || tagValue == v {
 							filteredPoints = append(filteredPoints, point)
@@ -32,7 +32,7 @@ func FilterPoints(points []Point, c config.Tagfilter) []Point {
 	for pointKey, point := range filteredPoints {
 	outBlock:
 		for tagKey, tagValue := range point.Tags {
-			if _, ok := tagfilterBlock[tagKey]; ok == true {
+			if _, ok := tagfilterBlock[tagKey]; ok {
 				for _, v := range tagfilterBlock[tagKey] {
 					if v == "*" || tagValue == v {
 						// index of the value to remove from points array
@@ -46,7 +46,7 @@ func FilterPoints(points []Point, c config.Tagfilter) []Point {
 
 	var result []Point
 	for pointKey := range filteredPoints {
-		if contains(keysToDelete, pointKey) == false {
+		if !contains(keysToDelete, pointKey) {
 			result = append(result, filteredPoints[pointKey])
 		}
 	}

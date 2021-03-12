@@ -2,7 +2,6 @@ package influx
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go"
@@ -32,8 +31,8 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 		var points = input.Points
 		var measurement = input.Measurement
 
-		if _, ok := config.Measurements[measurement]; ok == false {
-			return nil, errors.New(fmt.Sprintf("Unknown measurement \"%s\" encountered", measurement))
+		if _, ok := config.Measurements[measurement]; !ok {
+			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
 
 		var measurementConfig = config.Measurements[measurement]
@@ -54,10 +53,8 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 
 			var tags = point.Tags
 
-			if addedTags != nil {
-				for k, v := range addedTags {
-					tags[k] = v
-				}
+			for k, v := range addedTags {
+				tags[k] = v
 			}
 
 			writePoints = append(writePoints, general.Point{
