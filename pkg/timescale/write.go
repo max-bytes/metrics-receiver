@@ -57,7 +57,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 		points = general.FilterPoints(points, config)
 
 		for _, point := range points {
-			var timestampFormatted = point.Timestamp.Format("2006-01-02 03:04:05.000 MST")
+			var timestampFormatted = point.Timestamp.Format("2006-01-02 15:04:05.000 MST")
 
 			var tags = point.Tags
 
