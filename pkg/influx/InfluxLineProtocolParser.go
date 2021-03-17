@@ -111,11 +111,8 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	measurement := ArrayShift(&measurementAndTags)
 
 	measurement = regexEscapedSpaceBackward.ReplaceAllString(measurement, " ")
-
 	measurement = regexEscapedCommaBackward.ReplaceAllString(measurement, ",")
-
 	measurement = regexEscapedEqualBackward.ReplaceAllString(measurement, "=")
-
 	measurement = regexEscapedDoubleQuoteBackward.ReplaceAllString(measurement, "\"")
 
 	tagsStr := measurementAndTags
@@ -164,7 +161,6 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	for _, fieldStr := range fieldSetArray {
 
 		fieldStr = regexEscapedSpaceBackward.ReplaceAllString(fieldStr, " ")
-
 		fieldStr = regexEscapedCommaBackward.ReplaceAllString(fieldStr, ",")
 
 		fieldKV := strings.Split(fieldStr, "=")
@@ -196,7 +192,6 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 			if result, err := strconv.Atoi(value); err == nil {
 				fieldSet[key] = result
 			} else if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
-				// floatVal, _ := strconv.ParseFloat(value.(string), 64)
 				fieldSet[key] = floatVal
 			} else if regexInt.MatchString(value) {
 				m := regexInt.FindStringSubmatch(value)
