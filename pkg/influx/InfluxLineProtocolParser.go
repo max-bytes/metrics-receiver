@@ -28,8 +28,6 @@ func Parse(input string, currentTimestamp time.Time) ([]general.Point, error) {
 		}
 
 		point, error := ParsePoint(line, currentTimestamp)
-		// point := general.Point{}
-		// var error error = nil
 
 		if error != nil {
 			return nil, error
