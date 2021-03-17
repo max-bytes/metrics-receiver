@@ -26,7 +26,7 @@ func TestBasicFunctionality(t *testing.T) {
 		{Measurement: "weather2", Fields: map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, Tags: map[string]string{"location": "us-midwest", "source": "test-source"}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
-	assert.Equal(t, actual, expected, "The two objects should be the same.")
+	assert.Equal(t, expected, actual, "The two objects should be the same.")
 }
 
 func TestEscaping1(t *testing.T) {
@@ -43,7 +43,7 @@ func TestEscaping1(t *testing.T) {
 		{Measurement: `"weather"`, Fields: map[string]interface{}{`"temperature"`: 82}, Tags: map[string]string{`"location"`: `"us-midwest"`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
 	}
 
-	assert.Equal(t, actual, expected, "The two objects should be the same.")
+	assert.Equal(t, expected, actual, "The two objects should be the same.")
 }
 
 func TestEscaping2(t *testing.T) {
@@ -60,7 +60,7 @@ func TestEscaping2(t *testing.T) {
 		{Measurement: "weat=her", Fields: map[string]interface{}{`temp=erature_string`: `temp=hot`}, Tags: map[string]string{`loc=ation`: `us-mi=dwest`}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
-	assert.Equal(t, actual, expected, "The two objects should be the same.")
+	assert.Equal(t, expected, actual, "The two objects should be the same.")
 }
 
 func TestIncorrectString(t *testing.T) {
@@ -91,7 +91,7 @@ func TestIntValue(t *testing.T) {
 		{Measurement: "value", Fields: map[string]interface{}{`value`: int64(0)}, Tags: map[string]string{`label`: `state`, "customer": `stark`, `host`: `xyz.com`, `service`: `test-service`}, Timestamp: time.Unix(0, int64(1613985840702344400))},
 	}
 
-	assert.Equal(t, actual, expected, "The two objects should be the same.")
+	assert.Equal(t, expected, actual, "The two objects should be the same.")
 }
 
 func BenchmarkBasicFunctionality(b *testing.B) {
@@ -100,7 +100,7 @@ func BenchmarkBasicFunctionality(b *testing.B) {
 		"weather,location=us-midwest temperature=82",                     // no timestamp
 		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
 
-	numLines := 1000
+	numLines := 10000
 	lines := make([]string, numLines)
 	for i := 0; i < numLines; i++ {
 		index := i % len(potentialLines)

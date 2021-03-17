@@ -2,7 +2,6 @@ package influx
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -45,60 +44,59 @@ const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
 const ESCAPEDDBLQUOTE = "___ESCAPEDDBLQUOTE___"
 const ESCAPEDBACKSLASH = "___ESCAPEDBACKSLASH___"
 
-var regexEscapedSpaceForward = regexp.MustCompile(`\\ `)
-var regexEscapedCommaForward = regexp.MustCompile(`\\,`)
-var regexEscapedEqualForward = regexp.MustCompile(`\\=`)
-var regexEscapedDoubleQuoteForward = regexp.MustCompile(`\\\"`)
-var regexEscapedBackslashForward = regexp.MustCompile(`\\\\`)
+// var regexEscapedSpaceForward = regexp.MustCompile(`\\ `)
+// var regexEscapedCommaForward = regexp.MustCompile(`\\,`)
+// var regexEscapedEqualForward = regexp.MustCompile(`\\=`)
+// var regexEscapedDoubleQuoteForward = regexp.MustCompile(`\\\"`)
+// var regexEscapedBackslashForward = regexp.MustCompile(`\\\\`)
+// var regexEscapedSpaceBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDSPACE))
+// var regexEscapedCommaBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDCOMMA))
+// var regexEscapedEqualBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDEQUAL))
+// var regexEscapedDoubleQuoteBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
+// var regexEscapedBackslashBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDBACKSLASH))
 var regexLineVariant1 = regexp.MustCompile("^(.*?) (.*) (.*)$")
 var regexLineVariant2 = regexp.MustCompile("^(.*?) (.*)$")
-var regexEscapedSpaceBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDSPACE))
-var regexEscapedCommaBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDCOMMA))
-var regexEscapedEqualBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDEQUAL))
-var regexEscapedDoubleQuoteBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDDBLQUOTE))
-var regexEscapedBackslashBackward = regexp.MustCompile(fmt.Sprintf("%v", ESCAPEDBACKSLASH))
 var regexInt = regexp.MustCompile(`(\d+)[ui]`)
 var regexEscapedQuotedStringForward = regexp.MustCompile(`"(.*?)"`)
 var regexEscapedQuotedStringBackward = regexp.MustCompile(`___ESCAPEDSTRING_(\d+)___`)
 
 func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
-	line = regexEscapedSpaceForward.ReplaceAllString(line, ESCAPEDSPACE)
-	line = regexEscapedCommaForward.ReplaceAllString(line, ESCAPEDCOMMA)
-	line = regexEscapedEqualForward.ReplaceAllString(line, ESCAPEDEQUAL) // MODIFICATION
-	line = regexEscapedDoubleQuoteForward.ReplaceAllString(line, ESCAPEDDBLQUOTE)
-	line = regexEscapedBackslashForward.ReplaceAllString(line, ESCAPEDBACKSLASH)
+	line = strings.ReplaceAll(line, "\\ ", ESCAPEDSPACE)
+	line = strings.ReplaceAll(line, "\\,", ESCAPEDCOMMA)
+	line = strings.ReplaceAll(line, "\\=", ESCAPEDEQUAL) // MODIFICATION
+	line = strings.ReplaceAll(line, "\\\"", ESCAPEDDBLQUOTE)
+	line = strings.ReplaceAll(line, "\\\\", ESCAPEDBACKSLASH)
+	// line = regexEscapedSpaceForward.ReplaceAllString(line, ESCAPEDSPACE)
+	// line = regexEscapedCommaForward.ReplaceAllString(line, ESCAPEDCOMMA)
+	// line = regexEscapedEqualForward.ReplaceAllString(line, ESCAPEDEQUAL) // MODIFICATION
+	// line = regexEscapedDoubleQuoteForward.ReplaceAllString(line, ESCAPEDDBLQUOTE)
+	// line = regexEscapedBackslashForward.ReplaceAllString(line, ESCAPEDBACKSLASH)
 
 	measurementAndTagsStr := ""
 	fieldSetStr := ""
 	timestampStr := ""
 
-	if regexLineVariant1.MatchString(line) {
-		tokens := regexLineVariant1.FindStringSubmatch(line)
-
-		if len(tokens) > 1 {
+	if tokens := regexLineVariant1.FindStringSubmatch(line); tokens != nil {
+		lenTokens := len(tokens)
+		if lenTokens > 1 {
 			measurementAndTagsStr = tokens[1]
 		}
-
-		if len(tokens) > 2 {
+		if lenTokens > 2 {
 			fieldSetStr = tokens[2]
 		}
-
-		if len(tokens) > 3 {
+		if lenTokens > 3 {
 			timestampStr = tokens[3]
 		}
-	} else if regexLineVariant2.MatchString(line) {
-		tokens := regexLineVariant2.FindStringSubmatch(line)
-
-		if len(tokens) > 1 {
+	} else if tokens := regexLineVariant2.FindStringSubmatch(line); tokens != nil {
+		lenTokens := len(tokens)
+		if lenTokens > 1 {
 			measurementAndTagsStr = tokens[1]
 		}
-
-		if len(tokens) > 2 {
+		if lenTokens > 2 {
 			fieldSetStr = tokens[2]
 		}
-
-		if len(tokens) > 3 {
+		if lenTokens > 3 {
 			timestampStr = tokens[3]
 		}
 	} else {
@@ -110,10 +108,14 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 	measurement := ArrayShift(&measurementAndTags)
 
-	measurement = regexEscapedSpaceBackward.ReplaceAllString(measurement, " ")
-	measurement = regexEscapedCommaBackward.ReplaceAllString(measurement, ",")
-	measurement = regexEscapedEqualBackward.ReplaceAllString(measurement, "=")
-	measurement = regexEscapedDoubleQuoteBackward.ReplaceAllString(measurement, "\"")
+	measurement = strings.ReplaceAll(measurement, ESCAPEDSPACE, " ")
+	measurement = strings.ReplaceAll(measurement, ESCAPEDCOMMA, ",")
+	measurement = strings.ReplaceAll(measurement, ESCAPEDEQUAL, "=")
+	measurement = strings.ReplaceAll(measurement, ESCAPEDDBLQUOTE, "\"")
+	// measurement = regexEscapedSpaceBackward.ReplaceAllString(measurement, " ")
+	// measurement = regexEscapedCommaBackward.ReplaceAllString(measurement, ",")
+	// measurement = regexEscapedEqualBackward.ReplaceAllString(measurement, "=")
+	// measurement = regexEscapedDoubleQuoteBackward.ReplaceAllString(measurement, "\"")
 
 	tagsStr := measurementAndTags
 
@@ -121,10 +123,14 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 	for _, tagStr := range tagsStr {
 
-		tagStr = regexEscapedSpaceBackward.ReplaceAllString(tagStr, " ")
-		tagStr = regexEscapedCommaBackward.ReplaceAllString(tagStr, ",")
-		tagStr = regexEscapedDoubleQuoteBackward.ReplaceAllString(tagStr, "\"")
-		tagStr = regexEscapedBackslashBackward.ReplaceAllString(tagStr, "\\")
+		tagStr = strings.ReplaceAll(tagStr, ESCAPEDSPACE, " ")
+		tagStr = strings.ReplaceAll(tagStr, ESCAPEDCOMMA, ",")
+		tagStr = strings.ReplaceAll(tagStr, ESCAPEDDBLQUOTE, "\"")
+		tagStr = strings.ReplaceAll(tagStr, ESCAPEDBACKSLASH, "\\")
+		// tagStr = regexEscapedSpaceBackward.ReplaceAllString(tagStr, " ")
+		// tagStr = regexEscapedCommaBackward.ReplaceAllString(tagStr, ",")
+		// tagStr = regexEscapedDoubleQuoteBackward.ReplaceAllString(tagStr, "\"")
+		// tagStr = regexEscapedBackslashBackward.ReplaceAllString(tagStr, "\\")
 
 		tagKV := strings.Split(tagStr, "=")
 
@@ -132,8 +138,10 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 			tagKey := tagKV[0]
 			tagValue := tagKV[1]
 
-			tagKey = regexEscapedEqualBackward.ReplaceAllString(tagKey, "=")
-			tagValue = regexEscapedEqualBackward.ReplaceAllString(tagValue, "=")
+			tagKey = strings.ReplaceAll(tagKey, ESCAPEDEQUAL, "=")
+			tagValue = strings.ReplaceAll(tagValue, ESCAPEDEQUAL, "=")
+			// tagKey = regexEscapedEqualBackward.ReplaceAllString(tagKey, "=")
+			// tagValue = regexEscapedEqualBackward.ReplaceAllString(tagValue, "=")
 
 			tagSet[tagKey] = tagValue
 		}
@@ -141,7 +149,6 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 	}
 
 	// cut out quoted strings and replace them with placeholders (will be inserted back in later)
-
 	var strs []string
 	if strings.Index(fieldSetStr, `"`) != 0 {
 		cnt := 0
@@ -160,8 +167,10 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 	for _, fieldStr := range fieldSetArray {
 
-		fieldStr = regexEscapedSpaceBackward.ReplaceAllString(fieldStr, " ")
-		fieldStr = regexEscapedCommaBackward.ReplaceAllString(fieldStr, ",")
+		fieldStr = strings.ReplaceAll(fieldStr, ESCAPEDSPACE, " ")
+		fieldStr = strings.ReplaceAll(fieldStr, ESCAPEDCOMMA, ",")
+		// fieldStr = regexEscapedSpaceBackward.ReplaceAllString(fieldStr, " ")
+		// fieldStr = regexEscapedCommaBackward.ReplaceAllString(fieldStr, ",")
 
 		fieldKV := strings.Split(fieldStr, "=")
 
@@ -177,18 +186,21 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 				return strs[index]
 			})
 
-			key = regexEscapedEqualBackward.ReplaceAllString(key, "=")
-			value = regexEscapedEqualBackward.ReplaceAllString(value, "=")
+			key = strings.ReplaceAll(key, ESCAPEDEQUAL, "=")
+			value = strings.ReplaceAll(value, ESCAPEDEQUAL, "=")
+			key = strings.ReplaceAll(key, ESCAPEDDBLQUOTE, "\"")
+			value = strings.ReplaceAll(value, ESCAPEDDBLQUOTE, "\"")
+			key = strings.ReplaceAll(key, ESCAPEDBACKSLASH, "\\")
+			value = strings.ReplaceAll(value, ESCAPEDBACKSLASH, "\\")
+			// key = regexEscapedEqualBackward.ReplaceAllString(key, "=")
+			// value = regexEscapedEqualBackward.ReplaceAllString(value, "=")
+			// key = regexEscapedDoubleQuoteBackward.ReplaceAllString(key, "\"")
+			// value = regexEscapedDoubleQuoteBackward.ReplaceAllString(value, "\"")
+			// value = regexEscapedBackslashBackward.ReplaceAllString(value, "\\")
+			// key = regexEscapedBackslashBackward.ReplaceAllString(key, "\\")
 
-			key = regexEscapedDoubleQuoteBackward.ReplaceAllString(key, "\"")
-			value = regexEscapedDoubleQuoteBackward.ReplaceAllString(value, "\"")
-
-			value = regexEscapedBackslashBackward.ReplaceAllString(value, "\\")
-			key = regexEscapedBackslashBackward.ReplaceAllString(key, "\\")
-
+			// Try to convert the string to a float or integer
 			// TODO: handle booleans
-
-			// Try to convert the string to a float
 			if result, err := strconv.Atoi(value); err == nil {
 				fieldSet[key] = result
 			} else if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
