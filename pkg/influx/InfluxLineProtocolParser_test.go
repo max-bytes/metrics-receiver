@@ -11,8 +11,10 @@ import (
 
 func TestBasicFunctionality(t *testing.T) {
 	lines := []string{
+		"# comment",
 		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
 		"weather,location=us-midwest temperature=82",                     // no timestamp
+		"# comment",
 		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
 
 	currentTime := time.Now()
@@ -90,4 +92,25 @@ func TestIntValue(t *testing.T) {
 	}
 
 	assert.Equal(t, actual, expected, "The two objects should be the same.")
+}
+
+func BenchmarkBasicFunctionality(b *testing.B) {
+	potentialLines := []string{
+		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
+		"weather,location=us-midwest temperature=82",                     // no timestamp
+		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
+
+	numLines := 1000
+	lines := make([]string, numLines)
+	for i := 0; i < numLines; i++ {
+		index := i % len(potentialLines)
+		lines[i] = potentialLines[index]
+	}
+	str := strings.Join(lines, "\n")
+
+	currentTime := time.Now()
+
+	b.ResetTimer()
+
+	_, _ = Parse(str, currentTime)
 }
