@@ -75,13 +75,11 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 				}
 			}
 
+			// add tags (that are not mapped to colums) as data values
 			var tagDataValues map[string]interface{} = make(map[string]interface{})
-
 			for key, tagValue := range tags {
-				for _, v := range tagsAsColumns {
-					if key == v {
-						tagDataValues[key] = tagValue
-					}
+				if !contains(tagsAsColumns, key) {
+					tagDataValues[key] = tagValue
 				}
 			}
 
@@ -96,13 +94,11 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 				}
 			}
 
+			// add fields (that are not mapped to colums) as data values
 			var fieldDataValues map[string]interface{} = make(map[string]interface{})
-
 			for key, fieldValue := range fields {
-				for _, v := range fieldsAsColumns {
-					if key == v {
-						fieldDataValues[key] = fieldValue
-					}
+				if !contains(fieldsAsColumns, key) {
+					fieldDataValues[key] = fieldValue
 				}
 			}
 
@@ -139,6 +135,15 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 	}
 
 	return rows, nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) error {
