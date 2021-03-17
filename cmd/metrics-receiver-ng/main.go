@@ -43,6 +43,9 @@ func main() {
 
 // POST /influx/v1/write
 func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
+
+	log.Println("Receiving influx write request...")
+
 	if r.Method != "POST" {
 		http.Error(w, "Method is not supported.", http.StatusForbidden)
 		return
@@ -104,6 +107,8 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	log.Printf("Successfully processed influx write request; lines: %d \n", len(res))
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -115,7 +120,6 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Not supported", http.StatusUnauthorized)
-	return
 }
 
 func measurementSplitter(input []general.Point) []general.PointGroup {
