@@ -13,7 +13,7 @@ func TestBasicFunctionality(t *testing.T) {
 	lines := []string{
 		"# comment",
 		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-		"weather,location=us-midwest temperature=82",                     // no timestamp
+		"weather,location=us-midwest temperature=82u",                    // no timestamp
 		"# comment",
 		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
 
@@ -22,7 +22,7 @@ func TestBasicFunctionality(t *testing.T) {
 
 	expected := []general.Point{
 		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: time.Unix(0, int64(1465839830100400200))},
-		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: currentTime}, // make this nil
+		{Measurement: "weather", Fields: map[string]interface{}{"temperature": int64(82)}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: currentTime}, // make this nil
 		{Measurement: "weather2", Fields: map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, Tags: map[string]string{"location": "us-midwest", "source": "test-source"}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
@@ -97,8 +97,8 @@ func TestIntValue(t *testing.T) {
 func BenchmarkBasicFunctionality(b *testing.B) {
 	potentialLines := []string{
 		"weather,location=us-midwest temperature=82 1465839830100400200", // basic line
-		"weather,location=us-midwest temperature=82",                     // no timestamp
-		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23 1465839830100400201"}
+		"weather,location=us-midwest temperature=82u",                    // no timestamp
+		"weather2,location=us-midwest,source=test-source temperature=82,foo=12.3,bar=-1202.23,foo=\"bar\" 1465839830100400201"}
 
 	numLines := 10000
 	lines := make([]string, numLines)
