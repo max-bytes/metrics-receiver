@@ -38,11 +38,12 @@ func Parse(input string, currentTimestamp time.Time) ([]general.Point, error) {
 	return ret, nil
 }
 
-const ESCAPEDSPACE = "___ESCAPEDSPACE___"
-const ESCAPEDCOMMA = "___ESCAPEDCOMMA___"
-const ESCAPEDEQUAL = "___ESCAPEDEQUAL___" // MODIFICATION
-const ESCAPEDDBLQUOTE = "___ESCAPEDDBLQUOTE___"
-const ESCAPEDBACKSLASH = "___ESCAPEDBACKSLASH___"
+const ESCAPEDSPACE = "___ESCSPC___"
+const ESCAPEDCOMMA = "___ESCCMA___"
+const ESCAPEDEQUAL = "___ESCEQL___" // MODIFICATION
+const ESCAPEDDBLQUOTE = "___ESCDBQ___"
+const ESCAPEDBACKSLASH = "___ESCBKS___"
+const ESCAPEDSTRINGPREFIX = "___ESCSTR_"
 
 // var regexEscapedSpaceForward = regexp.MustCompile(`\\ `)
 // var regexEscapedCommaForward = regexp.MustCompile(`\\,`)
@@ -58,7 +59,7 @@ var regexLineVariant1 = regexp.MustCompile("^(.*?) (.*) (.*)$")
 var regexLineVariant2 = regexp.MustCompile("^(.*?) (.*)$")
 var regexInt = regexp.MustCompile(`(\d+)[ui]`)
 var regexEscapedQuotedStringForward = regexp.MustCompile(`"(.*?)"`)
-var regexEscapedQuotedStringBackward = regexp.MustCompile(`___ESCAPEDSTRING_(\d+)___`)
+var regexEscapedQuotedStringBackward = regexp.MustCompile(ESCAPEDSTRINGPREFIX + `(\d+)___`)
 
 func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
@@ -150,14 +151,13 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 	// cut out quoted strings and replace them with placeholders (will be inserted back in later)
 	var strs []string
-	if strings.Index(fieldSetStr, `"`) != 0 {
-		cnt := 0
-
+	quoteReplacementCount := 0
+	if strings.Contains(fieldSetStr, `"`) {
 		fieldSetStr = regexEscapedQuotedStringForward.ReplaceAllStringFunc(fieldSetStr, func(matches string) string {
 			t := regexEscapedQuotedStringForward.FindStringSubmatch(fieldSetStr)
 			strs = append(strs, t[1])
-			result := `___ESCAPEDSTRING_` + strconv.Itoa(cnt) + `___`
-			cnt = cnt + 1
+			result := ESCAPEDSTRINGPREFIX + strconv.Itoa(quoteReplacementCount) + `___`
+			quoteReplacementCount = quoteReplacementCount + 1
 			return result
 		})
 	}
@@ -179,12 +179,22 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 			value := fieldKV[1]
 
 			// insert previously cut out quoted strings again
-
-			value = regexEscapedQuotedStringBackward.ReplaceAllStringFunc(value, func(matches string) string {
-				t := regexEscapedQuotedStringBackward.FindStringSubmatch(value)
-				index, _ := strconv.Atoi(t[1])
-				return strs[index]
-			})
+			if quoteReplacementCount > 0 {
+				if strings.Contains(key, ESCAPEDSTRINGPREFIX) {
+					key = regexEscapedQuotedStringBackward.ReplaceAllStringFunc(key, func(matches string) string {
+						t := regexEscapedQuotedStringBackward.FindStringSubmatch(key)
+						index, _ := strconv.Atoi(t[1])
+						return "\"" + strs[index] + "\""
+					})
+				}
+				if strings.Contains(value, ESCAPEDSTRINGPREFIX) {
+					value = regexEscapedQuotedStringBackward.ReplaceAllStringFunc(value, func(matches string) string {
+						t := regexEscapedQuotedStringBackward.FindStringSubmatch(value)
+						index, _ := strconv.Atoi(t[1])
+						return strs[index]
+					})
+				}
+			}
 
 			key = strings.ReplaceAll(key, ESCAPEDEQUAL, "=")
 			value = strings.ReplaceAll(value, ESCAPEDEQUAL, "=")
@@ -201,12 +211,11 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 			// Try to convert the string to a float or integer
 			// TODO: handle booleans
-			if result, err := strconv.Atoi(value); err == nil {
+			if result, err := strconv.Atoi(value); err == nil { // first try a quick integer check
 				fieldSet[key] = result
 			} else if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
 				fieldSet[key] = floatVal
-			} else if regexInt.MatchString(value) {
-				m := regexInt.FindStringSubmatch(value)
+			} else if m := regexInt.FindStringSubmatch(value); m != nil { // complex integer check using regex
 				v, e := strconv.ParseInt(m[1], 10, 64)
 				if e != nil {
 					return general.Point{}, e
