@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go"
+	influxdb1 "github.com/influxdata/influxdb1-client/v2"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
@@ -17,7 +18,15 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) erro
 	}
 
 	if len(points) > 0 {
-		insertErr := insertRowsInflux(points, config)
+		var insertErr error
+		switch config.Version {
+		case 1:
+			insertErr = insertRowsInfluxV1(points, config)
+		case 2:
+			insertErr = insertRowsInfluxV2(points, config)
+		default:
+			return fmt.Errorf("Unknown influx version specified: %d", config.Version)
+		}
 		if insertErr != nil {
 			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
 		}
@@ -69,10 +78,40 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 	return writePoints, nil
 }
 
-func insertRowsInflux(writePoints []general.Point, config *config.OutputInflux) error {
+func insertRowsInfluxV1(writePoints []general.Point, config *config.OutputInflux) error {
+	c, err := influxdb1.NewHTTPClient(influxdb1.HTTPConfig{
+		Addr: config.Connection,
+	})
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
+	bp, err := influxdb1.NewBatchPoints(influxdb1.BatchPointsConfig{Database: config.DbName})
+	if err != nil {
+		return err
+	}
+	for _, p := range writePoints {
+		point, err := influxdb1.NewPoint(p.Measurement, p.Tags, p.Fields, p.Timestamp)
+		if err != nil {
+			return err
+		}
+		bp.AddPoint(point)
+	}
+
+	err = c.Write(bp)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func insertRowsInfluxV2(writePoints []general.Point, config *config.OutputInflux) error {
 
 	// create new client with default option for server url authenticate by token
 	client := influxdb2.NewClient(config.Connection, config.AuthToken)
+	defer client.Close()
 
 	// user blocking write client for writes to desired bucket
 	writeAPI := client.WriteAPIBlocking(config.Org, config.DbName)
@@ -90,6 +129,5 @@ func insertRowsInflux(writePoints []general.Point, config *config.OutputInflux) 
 	}
 
 	// Ensures background processes finish
-	client.Close()
 	return nil
 }

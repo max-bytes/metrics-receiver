@@ -193,8 +193,9 @@
             "tagfilter_block": {
                 "customer": ["mhx"]
             },
+            "version": 2,
             "write_strategy": "best_effort",
-            "connection": "http://localhost:58086",
+            "connection": "http://localhost:58087",
             "db_name": "metric",
             "org": "mhx",
             "auth_token": "my-token",

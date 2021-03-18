@@ -58,6 +58,7 @@ type OutputInflux struct {
 	Measurements     map[string]MeasurementInflux `json:"measurements"`
 	Connection       string                       `json:"connection"`
 	DbName           string                       `json:"db_name"`
+	Version          int                          `json:"version"`
 	Org              string                       `json:"org"`
 	AuthToken        string                       `json:"auth_token"`
 }
