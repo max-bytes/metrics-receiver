@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/jackc/pgx"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
@@ -52,12 +51,11 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 			addedTags = measurementConfig.AddedTags
 		}
 
-		var insertRows []TimescaleRow
+		var insertRows [][]interface{}
 
 		points = general.FilterPoints(points, config)
 
 		for _, point := range points {
-			var timestampFormatted = point.Timestamp.Format("2006-01-02 15:04:05.000 MST")
 
 			var tags = point.Tags
 
@@ -104,12 +102,12 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 			encodedData, _ := json.Marshal(MapsMerge(tagDataValues, fieldDataValues))
 
-			item := TimescaleRow{
-				timestampFormatted: timestampFormatted,
-				encodedData:        encodedData,
-				fieldColumnValues:  fieldColumnValues,
-				tagColumnValues:    tagColumnValues,
+			item := []interface{}{
+				point.Timestamp,
+				encodedData,
 			}
+			item = append(item, fieldColumnValues...)
+			item = append(item, tagColumnValues...)
 
 			insertRows = append(insertRows, item)
 		}
@@ -119,19 +117,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
 
-		var c []string
-
-		c = append(c, allColumns...)
-
-		columnsSQLStr := strings.Join(c, ",")
-
-		var a []string = CreateBindParameterList(1, len(allColumns))
-
-		var placeholdersSQLStr = strings.Join(a, ",")
-
-		sql := fmt.Sprintf("INSERT INTO %v(%v) VALUES (%v)", targetTable, columnsSQLStr, placeholdersSQLStr)
-
-		rows = append(rows, TimescaleRows{sql, insertRows, targetTable})
+		rows = append(rows, TimescaleRows{allColumns, insertRows, targetTable})
 	}
 
 	return rows, nil
@@ -146,7 +132,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) error {
+func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 	var c, parseErr = pgx.ParseConnectionString(config.Connection)
 	if parseErr != nil {
 		return parseErr
@@ -164,25 +150,14 @@ func insertRowsTimescale(rows []TimescaleRows, config *config.OutputTimescale) e
 	}
 	defer tx.Rollback() //nolint: errcheck
 
-	for _, row := range rows {
+	for _, rows := range rowsArray {
 
-		stmt, prepareErr := tx.Prepare(fmt.Sprintf("insert_query_%v", row.TargetTable), row.InsertQuery)
-		if prepareErr != nil {
-			return prepareErr
+		copyCount, err := conn.CopyFrom(pgx.Identifier{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		if err != nil {
+			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
 		}
-		for _, ti := range row.InsertRows {
-
-			var a []interface{}
-
-			a = append(a, ti.timestampFormatted)
-			a = append(a, ti.encodedData)
-			a = append(a, ti.fieldColumnValues...)
-			a = append(a, ti.tagColumnValues...)
-
-			_, insertErr := tx.Exec(stmt.SQL, a...)
-			if insertErr != nil {
-				return insertErr
-			}
+		if int(copyCount) != len(rows.InsertRows) {
+			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
 		}
 	}
 
@@ -225,14 +200,7 @@ func CreateBindParameterList(min, max int) []string {
 }
 
 type TimescaleRows struct {
-	InsertQuery string
-	InsertRows  []TimescaleRow
-	TargetTable string
-}
-
-type TimescaleRow struct {
-	timestampFormatted string
-	encodedData        []byte
-	fieldColumnValues  []interface{}
-	tagColumnValues    []interface{}
+	InsertColumns []string
+	InsertRows    [][]interface{}
+	TargetTable   string
 }
