@@ -211,9 +211,7 @@ func ParsePoint(line string, currentTime time.Time) (general.Point, error) {
 
 			// Try to convert the string to a float or integer
 			// TODO: handle booleans
-			if result, err := strconv.Atoi(value); err == nil { // first try a quick integer check
-				fieldSet[key] = result
-			} else if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+			if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
 				fieldSet[key] = floatVal
 			} else if m := regexInt.FindStringSubmatch(value); m != nil { // complex integer check using regex
 				v, e := strconv.ParseInt(m[1], 10, 64)

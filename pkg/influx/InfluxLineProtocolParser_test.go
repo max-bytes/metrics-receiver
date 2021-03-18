@@ -21,9 +21,9 @@ func TestBasicFunctionality(t *testing.T) {
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
 	expected := []general.Point{
-		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: "weather", Fields: map[string]interface{}{"temperature": 82.0}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: time.Unix(0, int64(1465839830100400200))},
 		{Measurement: "weather", Fields: map[string]interface{}{"temperature": int64(82)}, Tags: map[string]string{"location": "us-midwest"}, Timestamp: currentTime}, // make this nil
-		{Measurement: "weather2", Fields: map[string]interface{}{"temperature": 82, "foo": 12.3, "bar": -1202.23}, Tags: map[string]string{"location": "us-midwest", "source": "test-source"}, Timestamp: time.Unix(0, int64(1465839830100400201))},
+		{Measurement: "weather2", Fields: map[string]interface{}{"temperature": 82.0, "foo": 12.3, "bar": -1202.23}, Tags: map[string]string{"location": "us-midwest", "source": "test-source"}, Timestamp: time.Unix(0, int64(1465839830100400201))},
 	}
 
 	assert.Equal(t, expected, actual, "The two objects should be the same.")
@@ -39,8 +39,8 @@ func TestEscaping1(t *testing.T) {
 	actual, _ := Parse(strings.Join(lines, "\n"), currentTime)
 
 	expected := []general.Point{
-		{Measurement: "weat,he r", Fields: map[string]interface{}{"temperature": 82, "temperature_string": `hot, really "hot"!`}, Tags: map[string]string{`loc"ation, `: `us mid"west`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
-		{Measurement: `"weather"`, Fields: map[string]interface{}{`"temperature"`: 82}, Tags: map[string]string{`"location"`: `"us-midwest"`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: "weat,he r", Fields: map[string]interface{}{"temperature": 82.0, "temperature_string": `hot, really "hot"!`}, Tags: map[string]string{`loc"ation, `: `us mid"west`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
+		{Measurement: `"weather"`, Fields: map[string]interface{}{`"temperature"`: 82.0}, Tags: map[string]string{`"location"`: `"us-midwest"`}, Timestamp: time.Unix(0, int64(1465839830100400200))},
 	}
 
 	assert.Equal(t, expected, actual, "The two objects should be the same.")
