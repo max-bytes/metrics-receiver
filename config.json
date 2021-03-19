@@ -199,6 +199,8 @@
             "db_name": "metric",
             "org": "mhx",
             "auth_token": "my-token",
+            "username": "",
+            "password": "",
             "measurements": {
                 "value": {
                 },
