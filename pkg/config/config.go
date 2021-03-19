@@ -61,6 +61,8 @@ type OutputInflux struct {
 	Version          int                          `json:"version"`
 	Org              string                       `json:"org"`
 	AuthToken        string                       `json:"auth_token"`
+	Username         string                       `json:"username"`
+	Password         string                       `json:"password"`
 }
 
 func (c *OutputInflux) GetTagfilterInclude() map[string][]string {

@@ -80,7 +80,9 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 
 func insertRowsInfluxV1(writePoints []general.Point, config *config.OutputInflux) error {
 	c, err := influxdb1.NewHTTPClient(influxdb1.HTTPConfig{
-		Addr: config.Connection,
+		Addr:     config.Connection,
+		Username: config.Username,
+		Password: config.Password,
 	})
 	if err != nil {
 		return err
