@@ -1,0 +1,264 @@
+{
+    "port": 8080,
+    "enrichment_sets": {
+        "minimal": {
+            "lookup_tag": "ciid",
+            "lookup_attribute": "cmdb_ciid",
+            "enrichments": {
+                "STATUS": "ci_status",
+                "ENVIRONMENT": "ci_zone"
+            }
+        },
+        "full":{
+            "lookup_tag": "ciid",
+            "lookup_attribute": "cmdb_ciid",
+            "enrichments": {
+                "STATUS": "ci_status",
+                "ENVIRONMENT": "ci_zone",
+                "ASSIGNMENT_GROUP": "ci_assigmentgroup",
+                "ATTRIBUTENAME_FROM_OMNIKEEPER": "tagname_in_metric_stream"
+            }
+        }
+    },
+    "outputs_timescaledb": [
+        {
+            "enrichment_set" : "minimal",
+            "tagfilter_include": {
+                "host": [
+                    "abc.com"
+                ]
+            },
+            "tagfilter_block": {
+                "service": [
+                    "ABC"
+                ],
+                "customer": [
+                    "stark"
+                ]
+            },
+            "write_strategy": "commit",
+            "connection": "host=localhost port=55432 dbname=metrics user=postgres password=password sslmode=disable",
+            "measurements": {
+                "value": {
+                    "fieldsAsColumns": [
+                        "value",
+                        "warn",
+                        "crit",
+                        "min",
+                        "max"
+                    ],
+                    "tagsAsColumns": [
+                        "host",
+                        "service",
+                        "label",
+                        "uom",
+                        "ciname",
+                        "ciid",
+                        "monitoringprofile",
+                        "customer"
+                    ],
+                    "targetTable": "metric"
+                },
+                "rabbitmq_exchange": {
+                    "addedTags": {
+                        "measurement": "exchange"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_queue": {
+                    "addedTags": {
+                        "measurement": "queue"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_overview": {
+                    "addedTags": {
+                        "measurement": "overview"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "rabbitmq_node": {
+                    "addedTags": {
+                        "measurement": "node"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "rabbitmq"
+                },
+                "internal_memstats": {
+                    "addedTags": {
+                        "measurement": "internal_memstats"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "internal_agent": {
+                    "addedTags": {
+                        "measurement": "internal_agent"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "internal_gather": {
+                    "ignore": true
+                },
+                "internal_write": {
+                    "ignore": true
+                },
+                "cpu": {
+                    "addedTags": {
+                        "measurement": "cpu"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "disk": {
+                    "addedTags": {
+                        "measurement": "disk"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "diskio": {
+                    "addedTags": {
+                        "measurement": "diskio"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "kernel_vmstat": {
+                    "addedTags": {
+                        "measurement": "kernel_vmstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "mem": {
+                    "addedTags": {
+                        "measurement": "mem"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "net": {
+                    "addedTags": {
+                        "measurement": "net"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "nstat": {
+                    "addedTags": {
+                        "measurement": "nstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "processes": {
+                    "addedTags": {
+                        "measurement": "processes"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "procstat": {
+                    "addedTags": {
+                        "measurement": "procstat"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "procstat_lookup": {
+                    "addedTags": {
+                        "measurement": "procstat_lookup"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "swap": {
+                    "addedTags": {
+                        "measurement": "swap"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                },
+                "system": {
+                    "addedTags": {
+                        "measurement": "system"
+                    },
+                    "fieldsAsColumns": [],
+                    "tagsAsColumns": [],
+                    "targetTable": "telegraf"
+                }
+            }
+        }
+    ],
+    "outputs_influxdb": [
+        {
+            "tagfilter_include": {
+                "customer": [
+                    "*"
+                ]
+            },
+            "tagfilter_block": {
+                "customer": [
+                    "mhx"
+                ]
+            },
+            "version": 1,
+            "write_strategy": "best_effort",
+            "connection": "http://localhost:58086",
+            "db_name": "metric",
+            "org": "mhx",
+            "auth_token": "my-token",
+            "username": "",
+            "password": "",
+            "measurements": {
+                "value": {},
+                "rabbitmq_exchange": {},
+                "rabbitmq_queue": {},
+                "rabbitmq_overview": {},
+                "rabbitmq_node": {},
+                "internal_memstats": {},
+                "internal_agent": {},
+                "internal_gather": {
+                    "ignore": true
+                },
+                "internal_write": {
+                    "ignore": true
+                },
+                "cpu": {},
+                "disk": {},
+                "diskio": {},
+                "kernel_vmstat": {},
+                "mem": {},
+                "net": {},
+                "nstat": {},
+                "processes": {},
+                "procstat": {},
+                "procstat_lookup": {},
+                "swap": {},
+                "system": {}
+            }
+        }
+    ]
+}
