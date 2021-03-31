@@ -34,6 +34,7 @@ func main() {
 
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
+	http.HandleFunc("/api/health/check", healthCheckHandler)
 
 	fmt.Printf("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
@@ -57,6 +58,13 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Header.Get("Content-Encoding") {
 	case "gzip":
 		reader, err = gzip.NewReader(r.Body)
+
+		if err != nil {
+			log.Println(err)
+			http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
+			return
+		}
+
 		defer reader.Close()
 	default:
 		reader = r.Body
@@ -120,6 +128,16 @@ func influxQueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Not supported", http.StatusUnauthorized)
+}
+
+// GET /api/health/check
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method is not supported.", http.StatusForbidden)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func measurementSplitter(input []general.Point) []general.PointGroup {
