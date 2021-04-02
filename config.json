@@ -1,5 +1,9 @@
 {
     "port": 8080,
+    "log_level": "trace",
+    "internal_metrics_collect_interval": 10,
+    "internal_metrics_flush_interval": 60,
+    "internal_metrics_measurement": "internal_metrics",
     "outputs_timescaledb": [
     {
         "tagfilter_include": {
@@ -181,6 +185,17 @@
                 "fieldsAsColumns": [],
                 "tagsAsColumns": [],
                 "targetTable": "telegraf"
+            },
+            "internal_metrics": {
+                "fieldsAsColumns": [
+                    "received_messages",
+                    "received_lines",
+                    "received_bytes"
+                ],
+                "tagsAsColumns": [
+                ],
+                "targetTable": "internal_metrics",
+                "IgnoreFiltering": true
             }
         }
     }
@@ -195,7 +210,7 @@
             },
             "version": 1,
             "write_strategy": "best_effort",
-            "connection": "http://localhost:58086",
+            "connection": "http://localhost:8086",
             "db_name": "metric",
             "org": "mhx",
             "auth_token": "my-token",
@@ -245,6 +260,17 @@
                 "swap": {
                 },
                 "system": {
+                },
+                "internal_metrics": {
+                    "fieldsAsColumns": [
+                        "received_messages",
+                        "received_lines",
+                        "received_bytes"
+                    ],
+                    "tagsAsColumns": [
+                    ],
+                    "targetTable": "internal_metrics",
+                    "IgnoreFiltering": true
                 }
             }
         }

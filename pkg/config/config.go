@@ -26,9 +26,13 @@ func ReadConfigFromFile(configFile string, cfg *Configuration) error {
 }
 
 type Configuration struct {
-	Port             int
-	OutputsTimescale []OutputTimescale `json:"outputs_timescaledb"`
-	OutputsInflux    []OutputInflux    `json:"outputs_influxdb"`
+	Port                           int
+	LogLevel                       string            `json:"log_level"`
+	InternalMetricsCollectInterval int               `json:"internal_metrics_collect_interval"`
+	InternalMetricsFlushInterval   int               `json:"internal_metrics_flush_interval"`
+	InternalMetricsMeasurement     string            `json:"internal_metrics_measurement"`
+	OutputsTimescale               []OutputTimescale `json:"outputs_timescaledb"`
+	OutputsInflux                  []OutputInflux    `json:"outputs_influxdb"`
 }
 
 type Tagfilter interface {
@@ -78,9 +82,11 @@ type MeasurementTimescale struct {
 	TagsAsColumns   []string
 	TargetTable     string
 	Ignore          bool
+	IgnoreFiltering bool
 }
 
 type MeasurementInflux struct {
-	AddedTags map[string]string
-	Ignore    bool
+	AddedTags       map[string]string
+	Ignore          bool
+	IgnoreFiltering bool
 }

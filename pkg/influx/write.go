@@ -56,7 +56,9 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 			addedTags = measurementConfig.AddedTags
 		}
 
-		points = general.FilterPoints(points, config)
+		if !measurementConfig.IgnoreFiltering {
+			points = general.FilterPoints(points, config)
+		}
 
 		for _, point := range points {
 
