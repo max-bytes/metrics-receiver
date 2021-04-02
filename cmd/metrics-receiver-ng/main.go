@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
@@ -23,29 +25,118 @@ var (
 
 var cfg config.Configuration
 
+var internalMetrics struct {
+	incomingMetrics []general.Point
+
+	incomingMessagesCount int64
+	incomingLinesCount    int64
+	incomingBytesCount    int64
+
+	internalMetricsLock sync.Mutex
+}
+
+func init() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetLevel(logrus.TraceLevel) // is overwritten by configuration below
+}
+
 func main() {
+
+	logrus.Infof("metrics-receiver (Version: %s)", version)
 
 	flag.Parse()
 
+	logrus.Infof("Loading config from file: %s", *configFile)
 	err := config.ReadConfigFromFile(*configFile, &cfg)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatalf("Error opening config file: %s", err)
 	}
+
+	parsedLogLevel, err := logrus.ParseLevel(cfg.LogLevel)
+	if err != nil {
+		log.Fatalf("Error parsing loglevel in config file: %s", err)
+	}
+	logrus.SetLevel(parsedLogLevel)
+
+	go func() {
+		if cfg.InternalMetricsCollectInterval > 0 {
+			logrus.Infof("Started collecting internal metrics...")
+			for now := range time.Tick(time.Duration(cfg.InternalMetricsCollectInterval * int(time.Second))) {
+				internalMetrics.internalMetricsLock.Lock()
+
+				metric := general.Point{
+					Measurement: cfg.InternalMetricsMeasurement,
+					Tags:        make(map[string]string),
+					Fields: map[string]interface{}{
+						"received_messages": internalMetrics.incomingMessagesCount,
+						"received_lines":    internalMetrics.incomingLinesCount,
+						"received_bytes":    internalMetrics.incomingBytesCount,
+					},
+					Timestamp: now,
+				}
+				internalMetrics.incomingMetrics = append(internalMetrics.incomingMetrics, metric)
+
+				internalMetrics.incomingMessagesCount = 0
+				internalMetrics.incomingLinesCount = 0
+				internalMetrics.incomingBytesCount = 0
+
+				internalMetrics.internalMetricsLock.Unlock()
+				logrus.Debugf("Collected internal metrics")
+			}
+		} else {
+			logrus.Infof("Not collecting internal metrics due to configuration")
+		}
+	}()
+
+	go func() {
+		if cfg.InternalMetricsFlushInterval > 0 {
+			logrus.Infof("Started sending internal metrics...")
+			for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
+				internalMetrics.internalMetricsLock.Lock()
+				for _, outputConfig := range cfg.OutputsTimescale {
+					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
+
+					err := timescale.Write(splittedRows, &outputConfig)
+
+					if err != nil {
+						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
+					}
+
+				}
+
+				for _, outputConfig := range cfg.OutputsInflux {
+					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
+
+					err := influx.Write(splittedRows, &outputConfig)
+
+					if err != nil {
+						logrus.Errorf("Error writing internal metrics to influx: %v", err)
+					}
+				}
+
+				internalMetrics.incomingMetrics = make([]general.Point, 0)
+				internalMetrics.internalMetricsLock.Unlock()
+				logrus.Debugf("Sent internal metrics")
+			}
+		} else {
+			logrus.Infof("Not flushing internal metrics due to configuration")
+		}
+	}()
 
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
 	http.HandleFunc("/api/health/check", healthCheckHandler)
 
-	fmt.Printf("Starting server at port %d\n", cfg.Port)
+	logrus.Infof("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
-		log.Fatal(err)
+		logrus.Fatalf("Error opening config file: %s", err)
 	}
 }
 
 // POST /influx/v1/write
 func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
-	log.Println("Receiving influx write request...")
+	logrus.Infof("Receiving influx write request...")
 
 	if r.Method != "POST" {
 		http.Error(w, "Method is not supported.", http.StatusForbidden)
@@ -58,13 +149,11 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Header.Get("Content-Encoding") {
 	case "gzip":
 		reader, err = gzip.NewReader(r.Body)
-
 		if err != nil {
-			log.Println(err)
+			logrus.Errorf(err.Error())
 			http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
 			return
 		}
-
 		defer reader.Close()
 	default:
 		reader = r.Body
@@ -73,7 +162,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(reader)
 
 	if err != nil {
-		log.Println(err)
+		logrus.Errorf(err.Error())
 		http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
 		return
 	}
@@ -82,10 +171,16 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	res, parseErr := influx.Parse(requestStr, time.Now())
 	if parseErr != nil {
-		log.Println(parseErr)
-		http.Error(w, "An error ocurred while parsing the provieded file!", http.StatusBadRequest)
+		logrus.Errorf(err.Error())
+		http.Error(w, "An error occurred while parsing the influx line protocol request", http.StatusBadRequest)
 		return
 	}
+
+	internalMetrics.internalMetricsLock.Lock()
+	internalMetrics.incomingMessagesCount += 1
+	internalMetrics.incomingBytesCount += int64(len(buf))
+	internalMetrics.incomingLinesCount += int64(len(res))
+	internalMetrics.internalMetricsLock.Unlock()
 
 	var splittedRows = measurementSplitter(res)
 
@@ -94,7 +189,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		err := timescale.Write(splittedRows, &outputConfig)
 
 		if err != nil {
-			log.Println(err)
+			logrus.Errorf(err.Error())
 			if outputConfig.WriteStrategy == "commit" {
 				http.Error(w, "An error occurred handling timescaleDB output: "+err.Error(), http.StatusBadRequest)
 				return
@@ -107,7 +202,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		err := influx.Write(splittedRows, &outputConfig)
 
 		if err != nil {
-			log.Println(err)
+			logrus.Errorf(err.Error())
 			if outputConfig.WriteStrategy == "commit" {
 				http.Error(w, "An error occurred handling timescaleDB output: "+err.Error(), http.StatusBadRequest)
 				return

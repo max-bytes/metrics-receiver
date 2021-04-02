@@ -53,7 +53,9 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 		var insertRows [][]interface{}
 
-		points = general.FilterPoints(points, config)
+		if !measurementConfig.IgnoreFiltering {
+			points = general.FilterPoints(points, config)
+		}
 
 		for _, point := range points {
 
