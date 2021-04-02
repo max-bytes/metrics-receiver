@@ -4,6 +4,26 @@
     "internal_metrics_collect_interval": 10,
     "internal_metrics_flush_interval": 60,
     "internal_metrics_measurement": "internal_metrics",
+    "enrichment_sets": {
+        "minimal": {
+            "lookup_tag": "ciid",
+            "lookup_attribute": "cmdb_ciid",
+            "enrichments": {
+                "STATUS": "ci_status",
+                "ENVIRONMENT": "ci_zone"
+            }
+        },
+        "full":{
+            "lookup_tag": "ciid",
+            "lookup_attribute": "cmdb_ciid",
+            "enrichments": {
+                "STATUS": "ci_status",
+                "ENVIRONMENT": "ci_zone",
+                "ASSIGNMENT_GROUP": "ci_assigmentgroup",
+                "ATTRIBUTENAME_FROM_OMNIKEEPER": "tagname_in_metric_stream"
+            }
+        }
+    },
     "outputs_timescaledb": [
     {
         "tagfilter_include": {

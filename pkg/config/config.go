@@ -31,6 +31,7 @@ type Configuration struct {
 	InternalMetricsCollectInterval int               `json:"internal_metrics_collect_interval"`
 	InternalMetricsFlushInterval   int               `json:"internal_metrics_flush_interval"`
 	InternalMetricsMeasurement     string            `json:"internal_metrics_measurement"`
+	EnrichmentSets                 EnrichmentSets    `json:"enrichment_sets"`
 	OutputsTimescale               []OutputTimescale `json:"outputs_timescaledb"`
 	OutputsInflux                  []OutputInflux    `json:"outputs_influxdb"`
 }
@@ -89,4 +90,15 @@ type MeasurementInflux struct {
 	AddedTags       map[string]string
 	Ignore          bool
 	IgnoreFiltering bool
+}
+
+type EnrichmentSets struct {
+	Minimal EnrichmentSet `json:"minimal"`
+	Full    EnrichmentSet `json:"full"`
+}
+
+type EnrichmentSet struct {
+	LookupTag       string            `json:"lookup_tag"`
+	LookupAttribute string            `json:"lookup_attribute"`
+	Enrichments     map[string]string `json:"enrichments"`
 }
