@@ -101,4 +101,5 @@ type EnrichmentSet struct {
 	LookupTag       string            `json:"lookup_tag"`
 	LookupAttribute string            `json:"lookup_attribute"`
 	Enrichments     map[string]string `json:"enrichments"`
+	BaseUrl         string            `json:"base_url"`
 }

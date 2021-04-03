@@ -11,7 +11,8 @@
             "enrichments": {
                 "STATUS": "ci_status",
                 "ENVIRONMENT": "ci_zone"
-            }
+            },
+            "base_url": "https://localhost:44378"
         },
         "full":{
             "lookup_tag": "ciid",
@@ -21,7 +22,8 @@
                 "ENVIRONMENT": "ci_zone",
                 "ASSIGNMENT_GROUP": "ci_assigmentgroup",
                 "ATTRIBUTENAME_FROM_OMNIKEEPER": "tagname_in_metric_stream"
-            }
+            },
+            "base_url": "https://localhost:44378"
         }
     },
     "outputs_timescaledb": [
