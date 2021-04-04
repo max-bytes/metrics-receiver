@@ -3,22 +3,24 @@ package timescale
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/jackc/pgx"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputTimescale) error {
-	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, config)
+func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) error {
+	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet)
 
 	if buildDBRowsErr != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", buildDBRowsErr)
 	}
 
 	if len(rows) > 0 {
-		insertErr := insertRowsTimescale(rows, config)
+		insertErr := insertRowsTimescale(rows, cfg)
 		if insertErr != nil {
 			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
 		}
@@ -26,17 +28,17 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputTimescale) e
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
 		var measurement = input.Measurement
 
-		if _, ok := config.Measurements[measurement]; !ok {
+		if _, ok := cfg.Measurements[measurement]; !ok {
 			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
 
-		var measurementConfig = config.Measurements[measurement]
+		var measurementConfig = cfg.Measurements[measurement]
 
 		if measurementConfig.Ignore {
 			continue
@@ -54,7 +56,14 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 		var insertRows [][]interface{}
 
 		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, config)
+			points = general.FilterPoints(points, cfg)
+		}
+
+		// get enrichment cache
+		var enrichmentCache *enrichments.Cache
+		// if enrichmentSet we have to do with internal metrics skip enrichments in this case
+		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+			enrichmentCache = enrichments.GetEnrichmentsCache()
 		}
 
 		for _, point := range points {
@@ -63,6 +72,13 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 			for k, v := range addedTags {
 				tags[k] = v
+			}
+
+			// enrich tags here
+			for key := range tags {
+				if key == enrichmentSet.LookupTag {
+
+				}
 			}
 
 			var tagColumnValues []interface{}

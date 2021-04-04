@@ -5,6 +5,8 @@
     "internal_metrics_flush_interval": 60,
     "internal_metrics_measurement": "internal_metrics",
     "enrichment_sets": {
+        "retry_count": 6,
+        "collect_interval": 60,
         "minimal": {
             "lookup_tag": "ciid",
             "lookup_attribute": "cmdb_ciid",
@@ -28,6 +30,7 @@
     },
     "outputs_timescaledb": [
     {
+        "enrichment_type": "minimal",
         "tagfilter_include": {
             "host": ["abc.com"]
         },

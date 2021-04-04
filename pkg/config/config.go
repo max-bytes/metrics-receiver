@@ -47,6 +47,7 @@ type OutputTimescale struct {
 	WriteStrategy    string                          `json:"write_strategy"`
 	Measurements     map[string]MeasurementTimescale `json:"measurements"`
 	Connection       string                          `json:"connection"`
+	EnrichmentType   string                          `json:"enrichment_type"`
 }
 
 func (c *OutputTimescale) GetTagfilterInclude() map[string][]string {
@@ -68,6 +69,7 @@ type OutputInflux struct {
 	AuthToken        string                       `json:"auth_token"`
 	Username         string                       `json:"username"`
 	Password         string                       `json:"password"`
+	EnrichmentType   string                       `json:"enrichment_type"`
 }
 
 func (c *OutputInflux) GetTagfilterInclude() map[string][]string {
@@ -93,8 +95,10 @@ type MeasurementInflux struct {
 }
 
 type EnrichmentSets struct {
-	Minimal EnrichmentSet `json:"minimal"`
-	Full    EnrichmentSet `json:"full"`
+	Minimal         EnrichmentSet `json:"minimal"`
+	Full            EnrichmentSet `json:"full"`
+	RetryCount      int           `json:"retry_count"`
+	CollectInterval int           `json:"collect_interval"`
 }
 
 type EnrichmentSet struct {
