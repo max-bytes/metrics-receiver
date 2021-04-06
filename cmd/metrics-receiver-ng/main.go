@@ -23,7 +23,16 @@ var (
 	configFile = flag.String("config", "config.json", "Config file location")
 )
 
-var cfg config.Configuration
+// default configuration
+var cfg = config.Configuration{
+	LogLevel:                       "info",
+	InternalMetricsMeasurement:     "metrics_receiver",
+	Port:                           80,
+	InternalMetricsCollectInterval: 60,
+	InternalMetricsFlushCycle:      1,
+	OutputsTimescale:               []config.OutputTimescale{},
+	OutputsInflux:                  []config.OutputInflux{},
+}
 
 var internalMetrics struct {
 	incomingMetrics []general.Point
@@ -84,7 +93,7 @@ func main() {
 				logrus.Debugf("Collected internal metrics")
 
 				internalMetrics.flushCycle = internalMetrics.flushCycle + 1
-				if internalMetrics.flushCycle > cfg.InternalMetricsFlushCycle {
+				if internalMetrics.flushCycle >= cfg.InternalMetricsFlushCycle {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 					for _, outputConfig := range cfg.OutputsTimescale {
 						err := timescale.Write(splittedRows, &outputConfig)

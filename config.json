@@ -3,7 +3,7 @@
     "log_level": "trace",
     "internal_metrics_collect_interval": 60,
     "internal_metrics_flush_cycle": 1,
-    "internal_metrics_measurement": "internal_metrics",
+    "internal_metrics_measurement": "metrics_receiver",
     "outputs_timescaledb": [
     {
         "tagfilter_include": {
@@ -186,7 +186,7 @@
                 "tagsAsColumns": [],
                 "targetTable": "telegraf"
             },
-            "internal_metrics": {
+            "metrics_receiver": {
                 "fieldsAsColumns": [
                     "received_messages",
                     "received_lines",
@@ -194,7 +194,7 @@
                 ],
                 "tagsAsColumns": [
                 ],
-                "targetTable": "internal_metrics",
+                "targetTable": "metrics_receiver",
                 "IgnoreFiltering": true
             }
         }
@@ -261,7 +261,7 @@
                 },
                 "system": {
                 },
-                "internal_metrics": {
+                "metrics_receiver": {
                     "fieldsAsColumns": [
                         "received_messages",
                         "received_lines",
@@ -269,7 +269,7 @@
                     ],
                     "tagsAsColumns": [
                     ],
-                    "targetTable": "internal_metrics",
+                    "targetTable": "metrics_receiver",
                     "IgnoreFiltering": true
                 }
             }
