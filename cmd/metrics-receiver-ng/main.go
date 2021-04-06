@@ -31,8 +31,9 @@ var internalMetrics struct {
 	incomingMessagesCount int64
 	incomingLinesCount    int64
 	incomingBytesCount    int64
+	internalMetricsLock   sync.Mutex
 
-	internalMetricsLock sync.Mutex
+	flushCycle int
 }
 
 func init() {
@@ -62,8 +63,8 @@ func main() {
 		if cfg.InternalMetricsCollectInterval > 0 {
 			logrus.Infof("Started collecting internal metrics...")
 			for now := range time.Tick(time.Duration(cfg.InternalMetricsCollectInterval * int(time.Second))) {
-				internalMetrics.internalMetricsLock.Lock()
 
+				internalMetrics.internalMetricsLock.Lock()
 				metric := general.Point{
 					Measurement: cfg.InternalMetricsMeasurement,
 					Tags:        make(map[string]string),
@@ -74,54 +75,51 @@ func main() {
 					},
 					Timestamp: now,
 				}
-				internalMetrics.incomingMetrics = append(internalMetrics.incomingMetrics, metric)
-
 				internalMetrics.incomingMessagesCount = 0
 				internalMetrics.incomingLinesCount = 0
 				internalMetrics.incomingBytesCount = 0
-
 				internalMetrics.internalMetricsLock.Unlock()
+
+				internalMetrics.incomingMetrics = append(internalMetrics.incomingMetrics, metric)
 				logrus.Debugf("Collected internal metrics")
+
+				internalMetrics.flushCycle = internalMetrics.flushCycle + 1
+				if internalMetrics.flushCycle > cfg.InternalMetricsFlushCycle {
+					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
+					for _, outputConfig := range cfg.OutputsTimescale {
+						err := timescale.Write(splittedRows, &outputConfig)
+						if err != nil {
+							logrus.Errorf("Error writing internal metrics to timescale: %v", err)
+						}
+					}
+
+					for _, outputConfig := range cfg.OutputsInflux {
+						err := influx.Write(splittedRows, &outputConfig)
+						if err != nil {
+							logrus.Errorf("Error writing internal metrics to influx: %v", err)
+						}
+					}
+
+					internalMetrics.incomingMetrics = make([]general.Point, 0)
+					internalMetrics.flushCycle = 0
+					logrus.Debugf("Sent internal metrics")
+				}
 			}
 		} else {
 			logrus.Infof("Not collecting internal metrics due to configuration")
 		}
 	}()
 
-	go func() {
-		if cfg.InternalMetricsFlushInterval > 0 {
-			logrus.Infof("Started sending internal metrics...")
-			for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
-				internalMetrics.internalMetricsLock.Lock()
-				for _, outputConfig := range cfg.OutputsTimescale {
-					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
+	// go func() {
+	// 	if cfg.InternalMetricsFlushInterval > 0 {
+	// 		logrus.Infof("Started sending internal metrics...")
+	// 		for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
 
-					err := timescale.Write(splittedRows, &outputConfig)
-
-					if err != nil {
-						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
-					}
-
-				}
-
-				for _, outputConfig := range cfg.OutputsInflux {
-					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
-
-					err := influx.Write(splittedRows, &outputConfig)
-
-					if err != nil {
-						logrus.Errorf("Error writing internal metrics to influx: %v", err)
-					}
-				}
-
-				internalMetrics.incomingMetrics = make([]general.Point, 0)
-				internalMetrics.internalMetricsLock.Unlock()
-				logrus.Debugf("Sent internal metrics")
-			}
-		} else {
-			logrus.Infof("Not flushing internal metrics due to configuration")
-		}
-	}()
+	// 		}
+	// 	} else {
+	// 		logrus.Infof("Not flushing internal metrics due to configuration")
+	// 	}
+	// }()
 
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)

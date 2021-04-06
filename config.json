@@ -1,8 +1,8 @@
 {
     "port": 8080,
     "log_level": "trace",
-    "internal_metrics_collect_interval": 10,
-    "internal_metrics_flush_interval": 60,
+    "internal_metrics_collect_interval": 60,
+    "internal_metrics_flush_cycle": 1,
     "internal_metrics_measurement": "internal_metrics",
     "outputs_timescaledb": [
     {

@@ -29,7 +29,7 @@ type Configuration struct {
 	Port                           int
 	LogLevel                       string            `json:"log_level"`
 	InternalMetricsCollectInterval int               `json:"internal_metrics_collect_interval"`
-	InternalMetricsFlushInterval   int               `json:"internal_metrics_flush_interval"`
+	InternalMetricsFlushCycle      int               `json:"internal_metrics_flush_cycle"`
 	InternalMetricsMeasurement     string            `json:"internal_metrics_measurement"`
 	OutputsTimescale               []OutputTimescale `json:"outputs_timescaledb"`
 	OutputsInflux                  []OutputInflux    `json:"outputs_influxdb"`
