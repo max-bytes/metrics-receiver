@@ -95,13 +95,15 @@ type MeasurementInflux struct {
 }
 
 type EnrichmentSets struct {
-	Minimal         EnrichmentSet `json:"minimal"`
-	Full            EnrichmentSet `json:"full"`
-	RetryCount      int           `json:"retry_count"`
-	CollectInterval int           `json:"collect_interval"`
+	Sets            []EnrichmentSet `json:"sets"`
+	RetryCount      int             `json:"retry_count"`
+	CollectInterval int             `json:"collect_interval"`
 }
 
 type EnrichmentSet struct {
+	Name            string            `json:"name"`
+	TraitName       string            `json:"trait_name"`
+	LayerIds        []int             `json:"layer_ids"`
 	LookupTag       string            `json:"lookup_tag"`
 	LookupAttribute string            `json:"lookup_attribute"`
 	Enrichments     map[string]string `json:"enrichments"`

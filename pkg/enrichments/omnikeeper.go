@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
@@ -15,34 +15,48 @@ import (
 var retryCount = 0
 
 func EnrichMetrics(cfg config.EnrichmentSets) {
-	for range time.Tick(time.Duration(cfg.CollectInterval * int(time.Second))) {
-		result_minimal, minimal_err := getCiisByTrait(cfg.Minimal)
-		if minimal_err != nil {
+	// for range time.Tick(time.Duration(cfg.CollectInterval * int(time.Second))) {
+
+	for _, enrichmentSet := range cfg.Sets {
+		result, err := getCisByTrait(enrichmentSet)
+		if err != nil {
 			if retryCount == cfg.RetryCount {
 				logrus.Fatalf("Could not connect for the %v time to omnikeeper", retryCount)
 			}
 			retryCount += 1
-			logrus.Infof(minimal_err.Error())
+			logrus.Infof(err.Error())
+			continue
 		}
 
-		SetEnrichmentsCacheMinimal(result_minimal)
+		var enerichmentItems map[string]map[string]string = make(map[string]map[string]string)
 
-		result_full, full_err := getCiisByTrait(cfg.Minimal)
-		if full_err != nil {
-			if retryCount == cfg.RetryCount {
-				logrus.Fatalf("Could not connect for the %v time to omnikeeper", retryCount)
+		for key, value := range result {
+			// attributes
+			var i map[string]string = make(map[string]string)
+			for k, v := range value.TraitAttributes {
+				if !v.Value.IsArray {
+					i[k] = v.Value.Values[0]
+				}
 			}
-			retryCount += 1
-			logrus.Infof(full_err.Error())
+
+			enerichmentItems[key] = i
 		}
 
-		SetEnrichmentsCacheFull(result_full)
+		SetEnrichmentsCacheValues(enrichmentSet.Name, enerichmentItems)
 	}
+	// }
 }
 
-func getCiisByTrait(cfg config.EnrichmentSet) (map[string]string, error) {
-	url := cfg.BaseUrl + `/api/v1.0/CI/getAllCIIDs`
+func getCisByTrait(cfg config.EnrichmentSet) (map[string]Trait, error) {
+	// /api/v{version}/Trait/getEffectiveTraitsForTraitName
+	params := url.Values{
+		"traitName": {cfg.TraitName},
+		"layerIDs":  intListToStringList(cfg.LayerIds),
+	}
+
+	url := cfg.BaseUrl + `/api/v1.0/Trait/getEffectiveTraitsForTraitName?` + params.Encode()
 	resp, err := http.Get(url)
+
 	if err != nil {
 		return nil, err
 		// handle error
@@ -53,47 +67,44 @@ func getCiisByTrait(cfg config.EnrichmentSet) (map[string]string, error) {
 		return nil, fmt.Errorf("can't read config file: %w", err)
 	}
 
-	var result map[string]string
-	err = json.Unmarshal(byteValue, &result)
+	var result EfectiveTraitsResponse
+	err = json.Unmarshal(byteValue, &result.Traits)
 	if err != nil {
 		return nil, fmt.Errorf("can't parse config file: %w", err)
 	}
 
-	fmt.Println(result)
-	return result, nil
+	return result.Traits, nil
+}
+
+func intListToStringList(a []int) []string {
+	var b []string
+	for _, val := range a {
+		b = append(b, fmt.Sprint(val))
+	}
+
+	return b
 }
 
 var enrichmentsCache *Cache = &Cache{
-	Minimal: map[string]string{
-		"ci_status": "placeholder",
-		"ci_zone":   "placeholder",
-	},
-	Full: map[string]string{
-		"ci_status":                "placeholder",
-		"ci_zone":                  "placeholder",
-		"ci_assigmentgroup":        "placeholder",
-		"tagname_in_metric_stream": "placeholder",
-	},
+	EnrichmentItems: map[string]map[string]map[string]string{},
+	CacheLock:       sync.Mutex{},
 }
 
+// "minimal": {
+// 	"123213": {
+// 		"hostname": "value"
+// 	}
+// }
+
 type Cache struct {
-	Minimal   map[string]string
-	Full      map[string]string
-	CacheLock sync.Mutex
+	EnrichmentItems map[string]map[string]map[string]string
+	CacheLock       sync.Mutex
 }
 
 func GetEnrichmentsCache() *Cache {
 	return enrichmentsCache
 }
 
-func SetEnrichmentsCacheMinimal(minimal map[string]string) {
-	enrichmentsCache.CacheLock.Lock()
-	enrichmentsCache.Minimal = minimal
-	enrichmentsCache.CacheLock.Unlock()
-}
-
-func SetEnrichmentsCacheFull(full map[string]string) {
-	enrichmentsCache.CacheLock.Lock()
-	enrichmentsCache.Full = full
-	enrichmentsCache.CacheLock.Unlock()
+func SetEnrichmentsCacheValues(key string, values map[string]map[string]string) {
+	enrichmentsCache.EnrichmentItems[key] = values
 }

@@ -7,26 +7,32 @@
     "enrichment_sets": {
         "retry_count": 6,
         "collect_interval": 60,
-        "minimal": {
-            "lookup_tag": "ciid",
-            "lookup_attribute": "cmdb_ciid",
-            "enrichments": {
-                "STATUS": "ci_status",
-                "ENVIRONMENT": "ci_zone"
+		"sets": [
+            {
+				"name": "test",
+				"trait_name": "host",
+				"layer_ids": [1],
+				"lookup_tag": "ciid",
+				"lookup_attribute": "cbd6e036-1e7b-4b37-8b42-a76af3e925fc",
+				"base_url": "https://localhost:44378"
             },
-            "base_url": "https://localhost:44378"
-        },
-        "full":{
-            "lookup_tag": "ciid",
-            "lookup_attribute": "cmdb_ciid",
-            "enrichments": {
-                "STATUS": "ci_status",
-                "ENVIRONMENT": "ci_zone",
-                "ASSIGNMENT_GROUP": "ci_assigmentgroup",
-                "ATTRIBUTENAME_FROM_OMNIKEEPER": "tagname_in_metric_stream"
-            },
-            "base_url": "https://localhost:44378"
-        }
+			{
+				"name": "minimal",
+				"trait_name": "metrics-receiver-enrichment-minimal-item",
+				"layer_ids": [1,4,5],
+				"lookup_tag": "ciid",
+				"lookup_attribute": "cmdb_ciid",
+				"base_url": "https://localhost:44378"
+			},
+			{
+				"name": "full",
+				"trait_name": "metrics-receiver-enrichment-full-item",
+				"layer_ids": [1,4,5],
+				"lookup_tag": "ciid",
+				"lookup_attribute": "cmdb_ciid",
+				"base_url": "https://localhost:44378"
+			}
+		]
     },
     "outputs_timescaledb": [
     {
@@ -227,6 +233,7 @@
     ],
     "outputs_influxdb":[
         {
+            "enrichment_type": "test",
             "tagfilter_include": {
                 "customer": ["*"]
             },

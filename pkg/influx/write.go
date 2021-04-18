@@ -3,15 +3,17 @@ package influx
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go"
 	influxdb1 "github.com/influxdata/influxdb1-client/v2"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) error {
-	var points, err = buildDBPointsInflux(groupedPoints, config)
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet) error {
+	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet)
 
 	if err != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", err)
@@ -34,17 +36,17 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) erro
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
 		var measurement = input.Measurement
 
-		if _, ok := config.Measurements[measurement]; !ok {
+		if _, ok := cfg.Measurements[measurement]; !ok {
 			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
 
-		var measurementConfig = config.Measurements[measurement]
+		var measurementConfig = cfg.Measurements[measurement]
 
 		if measurementConfig.Ignore {
 			continue
@@ -57,12 +59,31 @@ func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([
 		}
 
 		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, config)
+			points = general.FilterPoints(points, cfg)
+		}
+
+		// get enrichment cache
+		var enrichmentCache *enrichments.Cache
+		// if enrichmentSet we have to do with internal metrics skip enrichments in this case
+		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+			enrichmentCache = enrichments.GetEnrichmentsCache()
 		}
 
 		for _, point := range points {
 
 			var tags = point.Tags
+
+			if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+				if _, ok := tags[enrichmentSet.LookupTag]; ok {
+					var traits = enrichmentCache.EnrichmentItems[enrichmentSet.Name]
+					if _, ok := traits[enrichmentSet.LookupAttribute]; ok {
+						var attributes = traits[enrichmentSet.LookupAttribute]
+						for k, v := range attributes {
+							tags[k] = v
+						}
+					}
+				}
+			}
 
 			for k, v := range addedTags {
 				tags[k] = v

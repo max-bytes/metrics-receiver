@@ -59,7 +59,13 @@ func main() {
 	}
 	logrus.SetLevel(parsedLogLevel)
 
-	go enrichments.EnrichMetrics(cfg.EnrichmentSets)
+	go func() {
+		enrichments.EnrichMetrics(cfg.EnrichmentSets)
+
+		for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
+			enrichments.EnrichMetrics(cfg.EnrichmentSets)
+		}
+	}()
 
 	go func() {
 		if cfg.InternalMetricsCollectInterval > 0 {
@@ -110,7 +116,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsInflux {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := influx.Write(splittedRows, &outputConfig)
+					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to influx: %v", err)
@@ -190,10 +196,12 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
 		var enrichmentSet config.EnrichmentSet
-		if outputConfig.EnrichmentType == "minmal" {
-			enrichmentSet = cfg.EnrichmentSets.Minimal
-		} else {
-			enrichmentSet = cfg.EnrichmentSets.Full
+
+		for _, v := range cfg.EnrichmentSets.Sets {
+			if outputConfig.EnrichmentType == v.Name {
+				enrichmentSet = v
+				break
+			}
 		}
 
 		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet)
@@ -209,7 +217,16 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
-		err := influx.Write(splittedRows, &outputConfig)
+		var enrichmentSet config.EnrichmentSet
+
+		for _, v := range cfg.EnrichmentSets.Sets {
+			if outputConfig.EnrichmentType == v.Name {
+				enrichmentSet = v
+				break
+			}
+		}
+
+		err := influx.Write(splittedRows, &outputConfig, enrichmentSet)
 
 		if err != nil {
 			logrus.Errorf(err.Error())
