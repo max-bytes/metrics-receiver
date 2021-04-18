@@ -103,7 +103,7 @@ type EnrichmentSets struct {
 type EnrichmentSet struct {
 	Name            string            `json:"name"`
 	TraitName       string            `json:"trait_name"`
-	LayerIds        []int             `json:"layer_ids"`
+	LayerIds        []int64           `json:"layer_ids"`
 	LookupTag       string            `json:"lookup_tag"`
 	LookupAttribute string            `json:"lookup_attribute"`
 	Enrichments     map[string]string `json:"enrichments"`

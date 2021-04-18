@@ -10,7 +10,7 @@
 		"sets": [
             {
 				"name": "test",
-				"trait_name": "host",
+				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cbd6e036-1e7b-4b37-8b42-a76af3e925fc",
@@ -18,7 +18,7 @@
             },
 			{
 				"name": "minimal",
-				"trait_name": "metrics-receiver-enrichment-minimal-item",
+				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid",
@@ -26,7 +26,7 @@
 			},
 			{
 				"name": "full",
-				"trait_name": "metrics-receiver-enrichment-full-item",
+				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid",

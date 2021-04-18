@@ -64,7 +64,7 @@ func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enric
 
 		// get enrichment cache
 		var enrichmentCache *enrichments.Cache
-		// if enrichmentSet we have to do with internal metrics skip enrichments in this case
+		// skip enrichments in case of internal metrics
 		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
 			enrichmentCache = enrichments.GetEnrichmentsCache()
 		}

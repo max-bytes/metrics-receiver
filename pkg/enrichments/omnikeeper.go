@@ -1,23 +1,61 @@
 package enrichments
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
+	okclient "www.mhx.at/gitlab/landscape/omnikeeper-client-go.git"
 )
 
 var retryCount = 0
+var api_client *okclient.APIClient
+var auth context.Context
+var apiVersion = "1"
+
+func init() {
+	username := "omnikeeper-client-library-test"
+	password := "omnikeeper-client-library-test"
+	serverURL := "https://acme.omnikeeper-dev.bymhx.at/backend"
+
+	oauth2cfg := &oauth2.Config{
+		ClientID: "landscape-omnikeeper",
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
+			TokenURL: "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+		},
+	}
+
+	ctx := context.Background()
+	token, err := oauth2cfg.PasswordCredentialsToken(ctx, username, password)
+	exitOnError(err)
+
+	configuration := okclient.NewConfiguration()
+	configuration.Servers[0].URL = serverURL
+	api_client = okclient.NewAPIClient(configuration)
+
+	tokenSource := oauth2cfg.TokenSource(ctx, token)
+	auth = context.WithValue(ctx, okclient.ContextOAuth2, tokenSource)
+}
+
+func exitOnError(err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
 
 func EnrichMetrics(cfg config.EnrichmentSets) {
-	// for range time.Tick(time.Duration(cfg.CollectInterval * int(time.Second))) {
-
 	for _, enrichmentSet := range cfg.Sets {
+		getCisByTraitV2(enrichmentSet)
 		result, err := getCisByTrait(enrichmentSet)
 		if err != nil {
 			if retryCount == cfg.RetryCount {
@@ -44,7 +82,19 @@ func EnrichMetrics(cfg config.EnrichmentSets) {
 
 		SetEnrichmentsCacheValues(enrichmentSet.Name, enerichmentItems)
 	}
-	// }
+}
+
+func getCisByTraitV2(cfg config.EnrichmentSet) (map[string]Trait, error) {
+
+	resp, r, err := api_client.TraitApi.GetEffectiveTraitsForTraitName(auth, apiVersion).LayerIDs(cfg.LayerIds).TraitName(cfg.TraitName).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling `TraitApi.GetEffectiveTraitsForTraitName``: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+	}
+
+	fmt.Fprintf(os.Stdout, "Response from `TraitApi.GetEffectiveTraitsForTraitName`: %v\n", resp)
+
+	return nil, nil
 }
 
 func getCisByTrait(cfg config.EnrichmentSet) (map[string]Trait, error) {
@@ -76,7 +126,7 @@ func getCisByTrait(cfg config.EnrichmentSet) (map[string]Trait, error) {
 	return result.Traits, nil
 }
 
-func intListToStringList(a []int) []string {
+func intListToStringList(a []int64) []string {
 	var b []string
 	for _, val := range a {
 		b = append(b, fmt.Sprint(val))
