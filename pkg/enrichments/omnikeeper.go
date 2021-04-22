@@ -21,25 +21,21 @@ var api_client *okclient.APIClient
 var auth context.Context
 var apiVersion = "1"
 
-func init() {
-	username := "omnikeeper-client-library-test"
-	password := "omnikeeper-client-library-test"
-	serverURL := "https://acme.omnikeeper-dev.bymhx.at/backend"
-
+func CreateAPIClient(cfg config.EnrichmentSets) {
 	oauth2cfg := &oauth2.Config{
-		ClientID: "landscape-omnikeeper",
+		ClientID: cfg.ClientID,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
-			TokenURL: "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+			AuthURL:  cfg.AuthURL,
+			TokenURL: cfg.TokenURL,
 		},
 	}
 
 	ctx := context.Background()
-	token, err := oauth2cfg.PasswordCredentialsToken(ctx, username, password)
+	token, err := oauth2cfg.PasswordCredentialsToken(ctx, cfg.Username, cfg.Password)
 	exitOnError(err)
 
 	configuration := okclient.NewConfiguration()
-	configuration.Servers[0].URL = serverURL
+	configuration.Servers[0].URL = cfg.ServerURL
 	api_client = okclient.NewAPIClient(configuration)
 
 	tokenSource := oauth2cfg.TokenSource(ctx, token)
@@ -55,8 +51,8 @@ func exitOnError(err error) {
 
 func EnrichMetrics(cfg config.EnrichmentSets) {
 	for _, enrichmentSet := range cfg.Sets {
-		getCisByTraitV2(enrichmentSet)
-		result, err := getCisByTrait(enrichmentSet)
+		result, err := getCisByTraitV2(enrichmentSet)
+		// result, err := getCisByTrait(enrichmentSet)
 		if err != nil {
 			if retryCount == cfg.RetryCount {
 				logrus.Fatalf("Could not connect for the %v time to omnikeeper", retryCount)
@@ -72,6 +68,10 @@ func EnrichMetrics(cfg config.EnrichmentSets) {
 			// attributes
 			var i map[string]string = make(map[string]string)
 			for k, v := range value.TraitAttributes {
+				if k == "ciid" {
+					continue
+				}
+
 				if !v.Value.IsArray {
 					i[k] = v.Value.Values[0]
 				}
@@ -84,19 +84,19 @@ func EnrichMetrics(cfg config.EnrichmentSets) {
 	}
 }
 
-func getCisByTraitV2(cfg config.EnrichmentSet) (map[string]Trait, error) {
+func getCisByTraitV2(cfg config.EnrichmentSet) (map[string]okclient.EffectiveTraitDTO, error) {
 
 	resp, r, err := api_client.TraitApi.GetEffectiveTraitsForTraitName(auth, apiVersion).LayerIDs(cfg.LayerIds).TraitName(cfg.TraitName).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TraitApi.GetEffectiveTraitsForTraitName``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
+		return nil, err
 	}
 
-	fmt.Fprintf(os.Stdout, "Response from `TraitApi.GetEffectiveTraitsForTraitName`: %v\n", resp)
-
-	return nil, nil
+	return resp, nil
 }
 
+// remove this not used anymore
 func getCisByTrait(cfg config.EnrichmentSet) (map[string]Trait, error) {
 	// /api/v{version}/Trait/getEffectiveTraitsForTraitName
 	params := url.Values{

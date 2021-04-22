@@ -4,6 +4,12 @@
     "internal_metrics_collect_interval": 10,
     "internal_metrics_flush_interval": 60,
     "internal_metrics_measurement": "internal_metrics",
+    "username": "omnikeeper-client-library-test",
+    "password": "",
+    "server_url": "https://acme.omnikeeper-dev.bymhx.at/backend",
+    "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
+    "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+    "client_id": "landscape-omnikeeper",
     "enrichment_sets": {
         "retry_count": 6,
         "collect_interval": 60,
@@ -13,24 +19,21 @@
 				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1],
 				"lookup_tag": "ciid",
-				"lookup_attribute": "cbd6e036-1e7b-4b37-8b42-a76af3e925fc",
-				"base_url": "https://localhost:44378"
+				"lookup_attribute": "cbd6e036-1e7b-4b37-8b42-a76af3e925fc"
             },
 			{
 				"name": "minimal",
 				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
-				"lookup_attribute": "cmdb_ciid",
-				"base_url": "https://localhost:44378"
+				"lookup_attribute": "cmdb_ciid"
 			},
 			{
 				"name": "full",
 				"trait_name": "metrics-receiver-enrichment-item",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
-				"lookup_attribute": "cmdb_ciid",
-				"base_url": "https://localhost:44378"
+				"lookup_attribute": "cmdb_ciid"
 			}
 		]
     },

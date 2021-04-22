@@ -98,6 +98,12 @@ type EnrichmentSets struct {
 	Sets            []EnrichmentSet `json:"sets"`
 	RetryCount      int             `json:"retry_count"`
 	CollectInterval int             `json:"collect_interval"`
+	ServerURL       string          `json:"server_url"`
+	Username        string          `json:"username"`
+	Password        string          `json:"password"`
+	AuthURL         string          `json:"auth_url"`
+	TokenURL        string          `json:"token_url"`
+	ClientID        string          `json:"client_id"`
 }
 
 type EnrichmentSet struct {
@@ -107,5 +113,4 @@ type EnrichmentSet struct {
 	LookupTag       string            `json:"lookup_tag"`
 	LookupAttribute string            `json:"lookup_attribute"`
 	Enrichments     map[string]string `json:"enrichments"`
-	BaseUrl         string            `json:"base_url"`
 }

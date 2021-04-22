@@ -60,6 +60,8 @@ func main() {
 	logrus.SetLevel(parsedLogLevel)
 
 	go func() {
+		enrichments.CreateAPIClient(cfg.EnrichmentSets)
+
 		enrichments.EnrichMetrics(cfg.EnrichmentSets)
 
 		for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
