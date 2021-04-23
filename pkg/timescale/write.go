@@ -71,13 +71,20 @@ func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, e
 			var tags = point.Tags
 
 			if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-				if _, ok := tags[enrichmentSet.LookupTag]; ok {
-					var traits = enrichmentCache.EnrichmentItems[enrichmentSet.Name]
-					if _, ok := traits[enrichmentSet.LookupAttribute]; ok {
-						var attributes = traits[enrichmentSet.LookupAttribute]
-						for k, v := range attributes {
-							tags[k] = v
+				if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
+					var traitAttributes = enrichmentCache.EnrichmentItems[enrichmentSet.Name]
+					for _, attributes := range traitAttributes {
+						if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
+							continue
 						}
+
+						for k, v := range attributes {
+							if k != enrichmentSet.LookupAttribute {
+								tags[k] = v
+							}
+						}
+
+						break
 					}
 				}
 			}

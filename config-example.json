@@ -14,23 +14,16 @@
         "retry_count": 6,
         "collect_interval": 60,
 		"sets": [
-            {
-				"name": "test",
-				"trait_name": "metrics-receiver-enrichment-item",
-				"layer_ids": [1],
-				"lookup_tag": "ciid",
-				"lookup_attribute": "cbd6e036-1e7b-4b37-8b42-a76af3e925fc"
-            },
 			{
 				"name": "minimal",
-				"trait_name": "metrics-receiver-enrichment-item",
+				"trait_name": "metrics-receiver-enrichment-item-maximal",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid"
 			},
 			{
 				"name": "full",
-				"trait_name": "metrics-receiver-enrichment-item",
+				"trait_name": "metrics-receiver-enrichment-item-minimal",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid"
