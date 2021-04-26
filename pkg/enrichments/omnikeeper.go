@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -57,18 +58,15 @@ func EnrichMetrics(cfg config.EnrichmentSets) {
 			continue
 		}
 
-		// var enerichmentItems []KeyValue
 		var enerichmentItems []map[string]string
 		for _, value := range result {
-			// attributes
 			item := make(map[string]string)
 			for _, v := range value.TraitAttributes {
 				if !v.Value.IsArray {
 					item[v.Name] = v.Value.Values[0]
+				} else {
+					item[v.Name] = strings.Join(v.Value.Values[:], ",")
 				}
-				// else {
-				// case when value is an array
-				// }
 			}
 			enerichmentItems = append(enerichmentItems, item)
 		}
