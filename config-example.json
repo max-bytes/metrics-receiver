@@ -16,7 +16,7 @@
 		"sets": [
 			{
 				"name": "minimal",
-				"trait_name": "metrics-receiver-enrichment-item-maximal",
+				"trait_name": "metrics-receiver-enrichment-item-full",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid"
