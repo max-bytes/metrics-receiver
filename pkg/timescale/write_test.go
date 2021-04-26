@@ -29,7 +29,7 @@ func TestBuildDBRowsTimescale(t *testing.T) {
 			{Measurement: "invalidMeasurement", Fields: map[string]interface{}{"crit": "crit_value"}, Tags: map[string]string{"monitoringprofile": "monitoringprofile_value"}, Timestamp: t2},
 		}},
 	}
-	config := config.OutputTimescale{
+	cfg := config.OutputTimescale{
 		Measurements: map[string]config.MeasurementTimescale{
 			"metric": {
 				AddedTags:       map[string]string{"added_tag": "added_tag_value"},
@@ -46,7 +46,7 @@ func TestBuildDBRowsTimescale(t *testing.T) {
 			"invalidMeasurement": {Ignore: true},
 		},
 	}
-	rows, err := buildDBRowsTimescale(pointGroups, &config)
+	rows, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{})
 	assert.Nil(t, err)
 
 	edMetric1, _ := json.Marshal(map[string]interface{}{"warn": "warn_value", "added_tag": "added_tag_value"})
@@ -128,7 +128,7 @@ func BenchmarkBuildDBRowsTimescale(b *testing.B) {
 			{Measurement: "invalidMeasurement", Fields: map[string]interface{}{"crit": "crit_value"}, Tags: map[string]string{"monitoringprofile": "monitoringprofile_value"}, Timestamp: t2},
 		}},
 	}
-	config := config.OutputTimescale{
+	cfg := config.OutputTimescale{
 		Measurements: map[string]config.MeasurementTimescale{
 			"metric": {
 				AddedTags:       map[string]string{"added_tag": "added_tag_value"},
@@ -149,7 +149,7 @@ func BenchmarkBuildDBRowsTimescale(b *testing.B) {
 	b.ResetTimer()
 
 	// for i := 0; i < 100; i++ {
-	_, err := buildDBRowsTimescale(pointGroups, &config)
+	_, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{})
 	b.Log(err)
 	// }
 }
