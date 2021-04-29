@@ -14,30 +14,7 @@ import (
 )
 
 var retryCount = 0
-var api_client *okclient.APIClient
-var auth context.Context
 var apiVersion = "1"
-
-func CreateAPIClient(cfg config.EnrichmentSets) {
-	oauth2cfg := &oauth2.Config{
-		ClientID: cfg.ClientID,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  cfg.AuthURL,
-			TokenURL: cfg.TokenURL,
-		},
-	}
-
-	ctx := context.Background()
-	token, err := oauth2cfg.PasswordCredentialsToken(ctx, cfg.Username, cfg.Password)
-	exitOnError(err)
-
-	configuration := okclient.NewConfiguration()
-	configuration.Servers[0].URL = cfg.ServerURL
-	api_client = okclient.NewAPIClient(configuration)
-
-	tokenSource := oauth2cfg.TokenSource(ctx, token)
-	auth = context.WithValue(ctx, okclient.ContextOAuth2, tokenSource)
-}
 
 func exitOnError(err error) {
 	if err != nil {
@@ -48,7 +25,7 @@ func exitOnError(err error) {
 
 func EnrichMetrics(cfg config.EnrichmentSets) {
 	for _, enrichmentSet := range cfg.Sets {
-		result, err := getCisByTrait(enrichmentSet)
+		result, err := getCisByTrait(enrichmentSet, cfg)
 		if err != nil {
 			if retryCount == cfg.RetryCount {
 				logrus.Fatalf("Could not connect for the %v time to omnikeeper", retryCount)
@@ -75,8 +52,26 @@ func EnrichMetrics(cfg config.EnrichmentSets) {
 	}
 }
 
-func getCisByTrait(cfg config.EnrichmentSet) (map[string]okclient.EffectiveTraitDTO, error) {
+func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map[string]okclient.EffectiveTraitDTO, error) {
 
+	oauth2cfg := &oauth2.Config{
+		ClientID: cfgFull.ClientID,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  cfgFull.AuthURL,
+			TokenURL: cfgFull.TokenURL,
+		},
+	}
+
+	ctx := context.Background()
+	token, err := oauth2cfg.PasswordCredentialsToken(ctx, cfgFull.Username, cfgFull.Password)
+	exitOnError(err)
+
+	configuration := okclient.NewConfiguration()
+	configuration.Servers[0].URL = cfgFull.ServerURL
+	api_client := okclient.NewAPIClient(configuration)
+
+	tokenSource := oauth2cfg.TokenSource(ctx, token)
+	auth := context.WithValue(ctx, okclient.ContextOAuth2, tokenSource)
 	resp, r, err := api_client.TraitApi.GetEffectiveTraitsForTraitName(auth, apiVersion).LayerIDs(cfg.LayerIds).TraitName(cfg.TraitName).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `TraitApi.GetEffectiveTraitsForTraitName``: %v\n", err)
