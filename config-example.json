@@ -4,15 +4,15 @@
     "internal_metrics_collect_interval": 10,
     "internal_metrics_flush_interval": 60,
     "internal_metrics_measurement": "internal_metrics",
-    "username": "omnikeeper-client-library-test",
-    "password": "",
-    "server_url": "https://acme.omnikeeper-dev.bymhx.at/backend",
-    "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
-    "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
-    "client_id": "landscape-omnikeeper",
     "enrichment_sets": {
         "retry_count": 6,
         "collect_interval": 60,
+        "username": "omnikeeper-client-library-test",
+        "password": "",
+        "server_url": "https://acme.omnikeeper-dev.bymhx.at/backend",
+        "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
+        "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+        "client_id": "landscape-omnikeeper",
 		"sets": [
 			{
 				"name": "minimal",
