@@ -42,9 +42,6 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 			continue
 		}
 
-		var tagsAsColumns = measurementConfig.TagsAsColumns
-		var fieldsAsColumns = measurementConfig.FieldsAsColumns
-
 		var addedTags map[string]string = nil
 
 		if measurementConfig.AddedTags != nil {
@@ -66,8 +63,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 			}
 
 			var tagColumnValues []interface{}
-
-			for _, v := range tagsAsColumns {
+			for _, v := range measurementConfig.TagsAsColumns {
 				if _, ok := tags[v]; ok {
 					tagColumnValues = append(tagColumnValues, tags[v])
 				} else {
@@ -78,17 +74,15 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 			// add tags (that are not mapped to colums) as data values
 			var tagDataValues map[string]interface{} = make(map[string]interface{})
 			for key, tagValue := range tags {
-				if !contains(tagsAsColumns, key) {
+				if !contains(measurementConfig.TagsAsColumns, key) {
 					tagDataValues[key] = tagValue
 				}
 			}
 
-			var fields = point.Fields
 			var fieldColumnValues []interface{}
-
-			for _, v := range fieldsAsColumns {
-				if _, ok := fields[v]; ok {
-					fieldColumnValues = append(fieldColumnValues, fields[v])
+			for _, v := range measurementConfig.FieldsAsColumns {
+				if _, ok := point.Fields[v]; ok {
+					fieldColumnValues = append(fieldColumnValues, point.Fields[v])
 				} else {
 					fieldColumnValues = append(fieldColumnValues, nil)
 				}
@@ -96,8 +90,8 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 			// add fields (that are not mapped to colums) as data values
 			var fieldDataValues map[string]interface{} = make(map[string]interface{})
-			for key, fieldValue := range fields {
-				if !contains(fieldsAsColumns, key) {
+			for key, fieldValue := range point.Fields {
+				if !contains(measurementConfig.FieldsAsColumns, key) {
 					fieldDataValues[key] = fieldValue
 				}
 			}
@@ -117,7 +111,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 		var baseColumns []string = []string{"time", "data"}
 		targetTable := measurementConfig.TargetTable
 
-		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
+		allColumns := ArrayMerge(baseColumns, measurementConfig.FieldsAsColumns, measurementConfig.TagsAsColumns)
 
 		rows = append(rows, TimescaleRows{allColumns, insertRows, targetTable})
 	}

@@ -119,17 +119,6 @@ func main() {
 		}
 	}()
 
-	// go func() {
-	// 	if cfg.InternalMetricsFlushInterval > 0 {
-	// 		logrus.Infof("Started sending internal metrics...")
-	// 		for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
-
-	// 		}
-	// 	} else {
-	// 		logrus.Infof("Not flushing internal metrics due to configuration")
-	// 	}
-	// }()
-
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
 	http.HandleFunc("/api/health/check", healthCheckHandler)
