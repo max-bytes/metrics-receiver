@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -20,8 +19,9 @@ import (
 )
 
 var (
-	version    = "0.0.0-src"
-	configFile = flag.String("config", "config.json", "Config file location")
+	version               = "0.0.0-src"
+	configFile            = flag.String("config", "config.json", "Config file location")
+	enrichmentsRetryCount = 0
 )
 
 var cfg config.Configuration
@@ -55,17 +55,26 @@ func main() {
 
 	parsedLogLevel, err := logrus.ParseLevel(cfg.LogLevel)
 	if err != nil {
-		log.Fatalf("Error parsing loglevel in config file: %s", err)
+		logrus.Fatalf("Error parsing loglevel in config file: %s", err)
 	}
 	logrus.SetLevel(parsedLogLevel)
 
-	go func() {
-		enrichments.EnrichMetrics(cfg.EnrichmentSets)
-
-		for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
-			enrichments.EnrichMetrics(cfg.EnrichmentSets)
+	if cfg.EnrichmentSets.CollectInterval > 0 {
+		updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+		if updateErr != nil {
+			logrus.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
 		}
-	}()
+
+		go func() {
+			for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
+				updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+				if updateErr != nil {
+					enrichmentsRetryCount += 1
+					logrus.Errorf("Error trying to update enrichment chache: %s", err)
+				}
+			}
+		}()
+	}
 
 	go func() {
 		if cfg.InternalMetricsCollectInterval > 0 {
@@ -105,7 +114,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsTimescale {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := timescale.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
+					err := timescale.Write(splittedRows, &outputConfig, config.EnrichmentSet{}, false)
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
@@ -116,7 +125,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsInflux {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
+					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{}, false)
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to influx: %v", err)
@@ -197,7 +206,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	for _, outputConfig := range cfg.OutputsTimescale {
 		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
-		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet)
+		validEnrichmentCache := cfg.EnrichmentSets.RetryCount > enrichmentsRetryCount
+
+		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet, validEnrichmentCache)
+
+		if err != nil && !validEnrichmentCache {
+			http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if err != nil {
 			logrus.Errorf(err.Error())
@@ -212,7 +228,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	for _, outputConfig := range cfg.OutputsInflux {
 		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
-		err := influx.Write(splittedRows, &outputConfig, enrichmentSet)
+		validEnrichmentCache := cfg.EnrichmentSets.RetryCount > enrichmentsRetryCount
+
+		err := influx.Write(splittedRows, &outputConfig, enrichmentSet, validEnrichmentCache)
+
+		if err != nil && !validEnrichmentCache {
+			http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if err != nil {
 			logrus.Errorf(err.Error())
@@ -223,7 +246,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	log.Printf("Successfully processed influx write request; lines: %d \n", len(res))
+	logrus.Printf("Successfully processed influx write request; lines: %d \n", len(res))
 
 	w.WriteHeader(http.StatusNoContent)
 }

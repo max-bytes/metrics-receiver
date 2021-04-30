@@ -46,7 +46,7 @@ func TestBuildDBRowsTimescale(t *testing.T) {
 			"invalidMeasurement": {Ignore: true},
 		},
 	}
-	rows, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{})
+	rows, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{}, false)
 	assert.Nil(t, err)
 
 	edMetric1, _ := json.Marshal(map[string]interface{}{"warn": "warn_value", "added_tag": "added_tag_value"})
@@ -149,7 +149,7 @@ func BenchmarkBuildDBRowsTimescale(b *testing.B) {
 	b.ResetTimer()
 
 	// for i := 0; i < 100; i++ {
-	_, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{})
+	_, err := buildDBRowsTimescale(pointGroups, &cfg, config.EnrichmentSet{}, false)
 	b.Log(err)
 	// }
 }

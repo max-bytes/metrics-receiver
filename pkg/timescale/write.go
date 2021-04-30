@@ -2,6 +2,7 @@ package timescale
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -12,8 +13,8 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) error {
-	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet)
+func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) error {
+	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet, validEnrichmentCache)
 
 	if buildDBRowsErr != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", buildDBRowsErr)
@@ -28,7 +29,7 @@ func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enri
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
@@ -59,45 +60,23 @@ func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, e
 			points = general.FilterPoints(points, cfg)
 		}
 
-		// get enrichment cache
-		var enrichmentCache *enrichments.Cache
-		// skip enrichments in case of internal metrics
-		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-			enrichmentCache = enrichments.GetEnrichmentsCache()
-		}
-
 		for _, point := range points {
 
 			var tags = point.Tags
 
-			if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-				if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
-					var traitAttributes = enrichmentCache.EnrichmentItems[enrichmentSet.Name]
-					for _, attributes := range traitAttributes {
-						if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
-							continue
-						}
-
-						for k, v := range attributes {
-							if k != enrichmentSet.LookupAttribute {
-								tags[k] = v
-							}
-						}
-
-						break
-					}
+			// check if request needs omnikeeper data
+			if _, ok := tags[enrichmentSet.LookupTag]; ok {
+				if !validEnrichmentCache {
+					return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
+				}
+				// skip enrichments in case of internal metrics
+				if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+					tags = enrichments.EnrichMetrics(tags, enrichmentSet)
 				}
 			}
 
 			for k, v := range addedTags {
 				tags[k] = v
-			}
-
-			// enrich tags here
-			for key := range tags {
-				if key == enrichmentSet.LookupTag {
-
-				}
 			}
 
 			var tagColumnValues []interface{}

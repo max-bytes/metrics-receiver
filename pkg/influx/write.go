@@ -2,6 +2,7 @@ package influx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -12,8 +13,8 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet) error {
-	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet)
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) error {
+	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet, validEnrichmentCache)
 
 	if err != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", err)
@@ -36,7 +37,7 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enri
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
@@ -62,33 +63,18 @@ func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enric
 			points = general.FilterPoints(points, cfg)
 		}
 
-		// get enrichment cache
-		var enrichmentCache *enrichments.Cache
-		// skip enrichments in case of internal metrics
-		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-			enrichmentCache = enrichments.GetEnrichmentsCache()
-		}
-
 		for _, point := range points {
 
 			var tags = point.Tags
 
-			if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-				if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
-					var traitAttributes = enrichmentCache.EnrichmentItems[enrichmentSet.Name]
-					for _, attributes := range traitAttributes {
-						if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
-							continue
-						}
-
-						for k, v := range attributes {
-							if k != enrichmentSet.LookupAttribute {
-								tags[k] = v
-							}
-						}
-
-						break
-					}
+			// check if request needs omnikeeper data
+			if _, ok := tags[enrichmentSet.LookupTag]; ok {
+				if !validEnrichmentCache {
+					return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
+				}
+				// skip enrichments in case of internal metrics
+				if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+					tags = enrichments.EnrichMetrics(tags, enrichmentSet)
 				}
 			}
 
