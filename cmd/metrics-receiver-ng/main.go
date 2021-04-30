@@ -195,14 +195,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
-		var enrichmentSet config.EnrichmentSet
-
-		for _, v := range cfg.EnrichmentSets.Sets {
-			if outputConfig.EnrichmentType == v.Name {
-				enrichmentSet = v
-				break
-			}
-		}
+		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
 		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet)
 
@@ -217,21 +210,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
-		var enrichmentSet config.EnrichmentSet
-
-		for _, v := range cfg.EnrichmentSets.Sets {
-			if outputConfig.EnrichmentType == v.Name {
-				enrichmentSet = v
-				break
-			}
-		}
+		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
 		err := influx.Write(splittedRows, &outputConfig, enrichmentSet)
 
 		if err != nil {
 			logrus.Errorf(err.Error())
 			if outputConfig.WriteStrategy == "commit" {
-				http.Error(w, "An error occurred handling timescaleDB output: "+err.Error(), http.StatusBadRequest)
+				http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 		}
@@ -260,6 +246,16 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func findEnrichmentSetByName(name string) config.EnrichmentSet {
+	for _, v := range cfg.EnrichmentSets.Sets {
+		if name == v.Name {
+			return v
+		}
+	}
+	return config.EnrichmentSet{} // nothing found, return an empty set
+
 }
 
 func measurementSplitter(input []general.Point) []general.PointGroup {
