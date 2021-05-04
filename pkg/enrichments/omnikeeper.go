@@ -2,6 +2,8 @@ package enrichments
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -13,10 +15,20 @@ import (
 var apiVersion = "1"
 
 func FetchEnrichments(cfg config.EnrichmentSets) error {
+
 	for _, enrichmentSet := range cfg.Sets {
 		result, err := getCisByTrait(enrichmentSet, cfg)
 		if err != nil {
+			enrichmentsCache.RetryCount += 1
+
+			if enrichmentsCache.RetryCount > cfg.RetryCount {
+				enrichmentsCache.IsValid = false
+			}
+
 			return err
+		} else {
+			enrichmentsCache.RetryCount = 0
+			enrichmentsCache.IsValid = true
 		}
 
 		updateEnrichmentCache(result, enrichmentSet.Name)
@@ -27,7 +39,7 @@ func FetchEnrichments(cfg config.EnrichmentSets) error {
 
 func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, setName string) {
 
-	var enerichmentItems []map[string]string
+	var enrichmentItems []map[string]string
 	for _, value := range result {
 		item := make(map[string]string)
 		for _, v := range value.TraitAttributes {
@@ -37,10 +49,10 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, setName
 				item[v.Name] = strings.Join(v.Value.Values[:], ",")
 			}
 		}
-		enerichmentItems = append(enerichmentItems, item)
+		enrichmentItems = append(enrichmentItems, item)
 	}
 
-	setEnrichmentsCacheValues(setName, enerichmentItems)
+	enrichmentsCache.EnrichmentItems[setName] = enrichmentItems
 }
 
 func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map[string]okclient.EffectiveTraitDTO, error) {
@@ -75,26 +87,34 @@ func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map
 	return resp, nil
 }
 
-func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) map[string]string {
+func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (map[string]string, error) {
+	if !enrichmentsCache.IsValid {
+		return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
+	}
 
-	if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
-		var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
-		for _, attributes := range traitAttributes {
-			if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
-				continue
-			}
+	if _, ok := tags[enrichmentSet.LookupTag]; ok {
+		// skip enrichments in case of internal metrics
+		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
+			if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
+				var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
+				for _, attributes := range traitAttributes {
+					if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
+						continue
+					}
 
-			for k, v := range attributes {
-				if k != enrichmentSet.LookupAttribute {
-					tags[k] = v
+					for k, v := range attributes {
+						if k != enrichmentSet.LookupAttribute {
+							tags[k] = v
+						}
+					}
+
+					break
 				}
 			}
-
-			break
 		}
 	}
 
-	return tags
+	return tags, nil
 }
 
 var enrichmentsCache *Cache = &Cache{
@@ -104,9 +124,7 @@ var enrichmentsCache *Cache = &Cache{
 
 type Cache struct {
 	EnrichmentItems map[string][]map[string]string
+	RetryCount      int
+	IsValid         bool
 	CacheLock       sync.Mutex
-}
-
-func setEnrichmentsCacheValues(key string, values []map[string]string) {
-	enrichmentsCache.EnrichmentItems[key] = values
 }

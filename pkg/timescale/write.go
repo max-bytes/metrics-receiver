@@ -2,9 +2,7 @@ package timescale
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 
 	"github.com/jackc/pgx"
@@ -13,8 +11,8 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) error {
-	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet, validEnrichmentCache)
+func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) error {
+	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet)
 
 	if buildDBRowsErr != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", buildDBRowsErr)
@@ -29,7 +27,7 @@ func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enri
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
@@ -64,15 +62,10 @@ func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, e
 
 			var tags = point.Tags
 
-			// check if request needs omnikeeper data
-			if _, ok := tags[enrichmentSet.LookupTag]; ok {
-				if !validEnrichmentCache {
-					return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
-				}
-				// skip enrichments in case of internal metrics
-				if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-					tags = enrichments.EnrichMetrics(tags, enrichmentSet)
-				}
+			tags, err := enrichments.EnrichMetrics(tags, enrichmentSet)
+
+			if err != nil {
+				return nil, err
 			}
 
 			for k, v := range addedTags {

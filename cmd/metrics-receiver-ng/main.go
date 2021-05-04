@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -19,9 +20,8 @@ import (
 )
 
 var (
-	version               = "0.0.0-src"
-	configFile            = flag.String("config", "config.json", "Config file location")
-	enrichmentsRetryCount = 0
+	version    = "0.0.0-src"
+	configFile = flag.String("config", "config.json", "Config file location")
 )
 
 var cfg config.Configuration
@@ -60,6 +60,7 @@ func main() {
 	logrus.SetLevel(parsedLogLevel)
 
 	if cfg.EnrichmentSets.CollectInterval > 0 {
+		logrus.Infof("Started fetching enrichments...")
 		updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
 		if updateErr != nil {
 			logrus.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
@@ -69,11 +70,12 @@ func main() {
 			for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
 				updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
 				if updateErr != nil {
-					enrichmentsRetryCount += 1
 					logrus.Errorf("Error trying to update enrichment chache: %s", err)
 				}
 			}
 		}()
+	} else {
+		logrus.Infof("Not enirching metrics due to configuration")
 	}
 
 	go func() {
@@ -114,7 +116,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsTimescale {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := timescale.Write(splittedRows, &outputConfig, config.EnrichmentSet{}, false)
+					err := timescale.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
@@ -125,7 +127,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsInflux {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{}, false)
+					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to influx: %v", err)
@@ -204,16 +206,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
-		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
+		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
-		validEnrichmentCache := cfg.EnrichmentSets.RetryCount > enrichmentsRetryCount
-
-		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet, validEnrichmentCache)
-
-		if err != nil && !validEnrichmentCache {
-			http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
+		if enrichmentSetErr != nil {
+			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
 			return
 		}
+
+		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet)
 
 		if err != nil {
 			logrus.Errorf(err.Error())
@@ -226,16 +226,14 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
-		enrichmentSet := findEnrichmentSetByName(outputConfig.EnrichmentType)
+		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
 
-		validEnrichmentCache := cfg.EnrichmentSets.RetryCount > enrichmentsRetryCount
-
-		err := influx.Write(splittedRows, &outputConfig, enrichmentSet, validEnrichmentCache)
-
-		if err != nil && !validEnrichmentCache {
-			http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
+		if enrichmentSetErr != nil {
+			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
 			return
 		}
+
+		err := influx.Write(splittedRows, &outputConfig, enrichmentSet)
 
 		if err != nil {
 			logrus.Errorf(err.Error())
@@ -271,14 +269,19 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func findEnrichmentSetByName(name string) config.EnrichmentSet {
+func findEnrichmentSetByName(name string) (config.EnrichmentSet, error) {
+	if name == "" {
+		return config.EnrichmentSet{}, nil
+	}
+
 	for _, v := range cfg.EnrichmentSets.Sets {
 		if name == v.Name {
-			return v
+			return v, nil
 		}
 	}
-	return config.EnrichmentSet{} // nothing found, return an empty set
 
+	err := fmt.Sprintf("The configured enrichmentset {%s} could not be found!", name)
+	return config.EnrichmentSet{}, errors.New(err)
 }
 
 func measurementSplitter(input []general.Point) []general.PointGroup {

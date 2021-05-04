@@ -2,9 +2,7 @@ package influx
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"reflect"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go"
 	influxdb1 "github.com/influxdata/influxdb1-client/v2"
@@ -13,8 +11,8 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) error {
-	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet, validEnrichmentCache)
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet) error {
+	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet)
 
 	if err != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", err)
@@ -37,7 +35,7 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enri
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet, validEnrichmentCache bool) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
@@ -67,15 +65,10 @@ func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enric
 
 			var tags = point.Tags
 
-			// check if request needs omnikeeper data
-			if _, ok := tags[enrichmentSet.LookupTag]; ok {
-				if !validEnrichmentCache {
-					return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
-				}
-				// skip enrichments in case of internal metrics
-				if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-					tags = enrichments.EnrichMetrics(tags, enrichmentSet)
-				}
+			tags, err := enrichments.EnrichMetrics(tags, enrichmentSet)
+
+			if err != nil {
+				return nil, err
 			}
 
 			for k, v := range addedTags {
