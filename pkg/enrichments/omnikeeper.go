@@ -3,7 +3,6 @@ package enrichments
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -92,28 +91,32 @@ func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (
 		return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
 	}
 
-	if _, ok := tags[enrichmentSet.LookupTag]; ok {
-		// skip enrichments in case of internal metrics
-		if !reflect.DeepEqual(enrichmentSet, config.EnrichmentSet{}) {
-			if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
-				var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
-				for _, attributes := range traitAttributes {
-					if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
-						continue
-					}
+	if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
+		var tagsCopy map[string]string = make(map[string]string)
 
-					for k, v := range attributes {
-						if k != enrichmentSet.LookupAttribute {
-							tags[k] = v
-						}
-					}
+		for k, v := range tags {
+			tagsCopy[k] = v
+		}
 
-					break
+		var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
+		for _, attributes := range traitAttributes {
+			if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
+				continue
+			}
+
+			for k, v := range attributes {
+				if k != enrichmentSet.LookupAttribute {
+					tagsCopy[k] = v
 				}
 			}
+
+			break
 		}
+
+		return tagsCopy, nil
 	}
 
+	// if there is nothing to enrich return the passed in tags
 	return tags, nil
 }
 
