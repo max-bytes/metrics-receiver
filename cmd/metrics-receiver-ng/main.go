@@ -61,15 +61,15 @@ func main() {
 
 	if cfg.EnrichmentSets.CollectInterval > 0 {
 		logrus.Infof("Started fetching enrichments...")
-		updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
-		if updateErr != nil {
+		err := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+		if err != nil {
 			logrus.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
 		}
 
 		go func() {
 			for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
-				updateErr := enrichments.FetchEnrichments(cfg.EnrichmentSets)
-				if updateErr != nil {
+				err := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+				if err != nil {
 					logrus.Errorf("Error trying to update enrichment chache: %s", err)
 				}
 			}

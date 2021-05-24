@@ -3,6 +3,7 @@ package enrichments
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -24,7 +25,7 @@ func FetchEnrichments(cfg config.EnrichmentSets) error {
 				enrichmentsCache.IsValid = false
 			}
 
-			return err
+			return fmt.Errorf("Failed to get CIs for trait \"%s\": %w", enrichmentSet.TraitName, err)
 		} else {
 			enrichmentsCache.RetryCount = 0
 			enrichmentsCache.IsValid = true
@@ -38,7 +39,7 @@ func FetchEnrichments(cfg config.EnrichmentSets) error {
 
 func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichmentSet config.EnrichmentSet) {
 
-	var enrichmentItems map[string]map[string]string
+	var enrichmentItems = map[string]map[string]string{}
 	for _, value := range result {
 		item := make(map[string]string)
 		for _, v := range value.TraitAttributes {
