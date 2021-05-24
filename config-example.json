@@ -8,22 +8,15 @@
         "retry_count": 6,
         "collect_interval": 60,
         "username": "omnikeeper-client-library-test",
-        "password": "",
+        "password": "omnikeeper-client-library-test",
         "server_url": "https://acme.omnikeeper-dev.bymhx.at/backend",
         "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
         "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
         "client_id": "landscape-omnikeeper",
 		"sets": [
 			{
-				"name": "minimal",
-				"trait_name": "metrics-receiver-enrichment-item-full",
-				"layer_ids": [1,4,5],
-				"lookup_tag": "ciid",
-				"lookup_attribute": "cmdb_ciid"
-			},
-			{
 				"name": "full",
-				"trait_name": "metrics-receiver-enrichment-item-minimal",
+				"trait_name": "metrics-receiver-enrichment-item-full",
 				"layer_ids": [1,4,5],
 				"lookup_tag": "ciid",
 				"lookup_attribute": "cmdb_ciid"
@@ -32,7 +25,7 @@
     },
     "outputs_timescaledb": [
     {
-        "enrichment_type": "minimal",
+        "enrichment_type": "full",
         "tagfilter_include": {
             "host": ["abc.com"]
         },
@@ -229,7 +222,7 @@
     ],
     "outputs_influxdb":[
         {
-            "enrichment_type": "test",
+            "enrichment_type": "full",
             "tagfilter_include": {
                 "customer": ["*"]
             },
