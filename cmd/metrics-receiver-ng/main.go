@@ -75,11 +75,11 @@ func main() {
 			}
 		}()
 	} else {
-		logrus.Infof("Not enirching metrics due to configuration")
+		logrus.Infof("Not enriching metrics due to configuration")
 	}
 
-	go func() {
-		if cfg.InternalMetricsCollectInterval > 0 {
+	if cfg.InternalMetricsCollectInterval > 0 && cfg.InternalMetricsFlushInterval > 0 {
+		go func() {
 			logrus.Infof("Started collecting internal metrics...")
 			for now := range time.Tick(time.Duration(cfg.InternalMetricsCollectInterval * int(time.Second))) {
 				internalMetrics.internalMetricsLock.Lock()
@@ -103,45 +103,30 @@ func main() {
 				internalMetrics.internalMetricsLock.Unlock()
 				logrus.Debugf("Collected internal metrics")
 			}
-		} else {
-			logrus.Infof("Not collecting internal metrics due to configuration")
-		}
-	}()
+		}()
 
-	go func() {
-		if cfg.InternalMetricsFlushInterval > 0 {
+		go func() {
 			logrus.Infof("Started sending internal metrics...")
 			for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
+				logrus.Debugf("Sending internal metrics")
 				internalMetrics.internalMetricsLock.Lock()
-				for _, outputConfig := range cfg.OutputsTimescale {
-					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := timescale.Write(splittedRows, &outputConfig, nil)
-
-					if err != nil {
-						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
-					}
-
+				// NOTE: we can't really treat critical errors different here, so we just log the error in both cases
+				criticalError, nonCriticalErrors := writeOutputs(internalMetrics.incomingMetrics)
+				if criticalError != nil {
+					logrus.Errorf("Error writing internal metrics: %v", criticalError)
 				}
-
-				for _, outputConfig := range cfg.OutputsInflux {
-					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
-
-					err := influx.Write(splittedRows, &outputConfig, nil)
-
-					if err != nil {
-						logrus.Errorf("Error writing internal metrics to influx: %v", err)
-					}
+				for _, nonCriticalError := range nonCriticalErrors {
+					logrus.Errorf("Error writing internal metrics: %v", nonCriticalError)
 				}
 
 				internalMetrics.incomingMetrics = make([]general.Point, 0)
 				internalMetrics.internalMetricsLock.Unlock()
-				logrus.Debugf("Sent internal metrics")
 			}
-		} else {
-			logrus.Infof("Not flushing internal metrics due to configuration")
-		}
-	}()
+		}()
+	} else {
+		logrus.Infof("Not collecting or sending any internal metrics due to configuration")
+	}
 
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
 	http.HandleFunc("/api/influx/v1/query", influxQueryHandler)
@@ -189,9 +174,9 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestStr := string(buf)
 
-	res, parseErr := influx.Parse(requestStr, time.Now())
+	points, parseErr := influx.Parse(requestStr, time.Now())
 	if parseErr != nil {
-		logrus.Errorf(err.Error())
+		logrus.Errorf("An error occurred while parsing the influx line protocol request: " + parseErr.Error())
 		http.Error(w, "An error occurred while parsing the influx line protocol request", http.StatusBadRequest)
 		return
 	}
@@ -199,26 +184,41 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	internalMetrics.internalMetricsLock.Lock()
 	internalMetrics.incomingMessagesCount += 1
 	internalMetrics.incomingBytesCount += int64(len(buf))
-	internalMetrics.incomingLinesCount += int64(len(res))
+	internalMetrics.incomingLinesCount += int64(len(points))
 	internalMetrics.internalMetricsLock.Unlock()
 
-	var splittedRows = measurementSplitter(res)
+	criticalError, nonCriticalErrors := writeOutputs(points)
+	if criticalError != nil {
+		logrus.Errorf(criticalError.Error())
+		http.Error(w, criticalError.Error(), http.StatusBadRequest)
+		return
+	} else {
+		for _, nonCriticalError := range nonCriticalErrors {
+			logrus.Errorf(nonCriticalError.Error())
+		}
+
+		logrus.Printf("Successfully processed influx write request; lines: %d \n", len(points))
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func writeOutputs(points []general.Point) (error, []error) {
+	var pointGroups = measurementSplitter(points)
+	var nonCriticalErrors []error
 
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
 		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
 		if enrichmentSetErr != nil {
-			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
-			return
+			return enrichmentSetErr, nonCriticalErrors
 		}
 
-		err := timescale.Write(splittedRows, &outputConfig, enrichmentSet)
-
+		err := timescale.Write(pointGroups, &outputConfig, enrichmentSet)
 		if err != nil {
-			logrus.Errorf(err.Error())
 			if outputConfig.WriteStrategy == "commit" {
-				http.Error(w, "An error occurred handling timescaleDB output: "+err.Error(), http.StatusBadRequest)
-				return
+				return fmt.Errorf("An error occurred writing timescaleDB output: %w", err), nonCriticalErrors
+			} else {
+				nonCriticalErrors = append(nonCriticalErrors, err)
 			}
 		}
 	}
@@ -227,24 +227,20 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	for _, outputConfig := range cfg.OutputsInflux {
 		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
 		if enrichmentSetErr != nil {
-			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
-			return
+			return enrichmentSetErr, nonCriticalErrors
 		}
 
-		err := influx.Write(splittedRows, &outputConfig, enrichmentSet)
-
+		err := influx.Write(pointGroups, &outputConfig, enrichmentSet)
 		if err != nil {
-			logrus.Errorf(err.Error())
 			if outputConfig.WriteStrategy == "commit" {
-				http.Error(w, "An error occurred handling influxDB output: "+err.Error(), http.StatusBadRequest)
-				return
+				return fmt.Errorf("An error occurred writing influxDB output: %w", err), nonCriticalErrors
+			} else {
+				nonCriticalErrors = append(nonCriticalErrors, err)
 			}
 		}
 	}
 
-	logrus.Printf("Successfully processed influx write request; lines: %d \n", len(res))
-
-	w.WriteHeader(http.StatusNoContent)
+	return nil, nonCriticalErrors
 }
 
 // GET /influx/v1/query
