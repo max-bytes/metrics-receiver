@@ -30,15 +30,15 @@ func FetchEnrichments(cfg config.EnrichmentSets) error {
 			enrichmentsCache.IsValid = true
 		}
 
-		updateEnrichmentCache(result, enrichmentSet.Name)
+		updateEnrichmentCache(result, enrichmentSet)
 	}
 
 	return nil
 }
 
-func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, setName string) {
+func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichmentSet config.EnrichmentSet) {
 
-	var enrichmentItems []map[string]string
+	var enrichmentItems map[string]map[string]string
 	for _, value := range result {
 		item := make(map[string]string)
 		for _, v := range value.TraitAttributes {
@@ -48,10 +48,21 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, setName
 				item[v.Name] = strings.Join(v.Value.Values[:], ",")
 			}
 		}
-		enrichmentItems = append(enrichmentItems, item)
+		lookupAttribute := enrichmentSet.LookupAttribute
+		if _, ok := item[lookupAttribute]; !ok {
+			continue // we cannot use a CI which does not contain the lookup attribute
+		}
+		lookupAttributeValue := item[lookupAttribute]
+
+		// delete the lookup attribute from the item, it should not be enriched and is just for lookup
+		// TODO: consider making this configurable
+		delete(item, lookupAttribute)
+
+		// TODO: how to deal with duplicate lookupAttribute values? For now we just override, so it's not deterministic which CI is used then
+		enrichmentItems[lookupAttributeValue] = item
 	}
 	enrichmentsCache.CacheLock.Lock()
-	enrichmentsCache.EnrichmentItems[setName] = enrichmentItems
+	enrichmentsCache.EnrichmentItems[enrichmentSet.Name] = enrichmentItems
 	enrichmentsCache.CacheLock.Unlock()
 }
 
@@ -104,20 +115,12 @@ func EnrichMetrics(tags map[string]string, enrichmentSet *config.EnrichmentSet) 
 		}
 
 		enrichmentsCache.CacheLock.RLock()
-		var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
-		for _, attributes := range traitAttributes {
-			// TODO: this is really slow, consider replacing it with a map+lookup
-			if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
-				continue
-			}
-
-			for k, v := range attributes {
-				if k != enrichmentSet.LookupAttribute {
+		if traitAttributes, ok := enrichmentsCache.EnrichmentItems[enrichmentSet.Name]; ok {
+			if attributes, ok := traitAttributes[lookupTagValue]; ok {
+				for k, v := range attributes {
 					tagsCopy[k] = v
 				}
 			}
-
-			break
 		}
 		enrichmentsCache.CacheLock.RUnlock()
 
@@ -128,7 +131,7 @@ func EnrichMetrics(tags map[string]string, enrichmentSet *config.EnrichmentSet) 
 	return tags, nil
 }
 
-func ForceSetEnrichmentCache(enrichmentItems []map[string]string, cacheEntryName string) {
+func ForceSetEnrichmentCache(enrichmentItems map[string]map[string]string, cacheEntryName string) {
 	enrichmentsCache.CacheLock.Lock()
 	enrichmentsCache.EnrichmentItems[cacheEntryName] = enrichmentItems
 	enrichmentsCache.IsValid = true
@@ -136,12 +139,12 @@ func ForceSetEnrichmentCache(enrichmentItems []map[string]string, cacheEntryName
 }
 
 var enrichmentsCache *Cache = &Cache{
-	EnrichmentItems: map[string][]map[string]string{},
+	EnrichmentItems: map[string]map[string]map[string]string{},
 	CacheLock:       sync.RWMutex{},
 }
 
 type Cache struct {
-	EnrichmentItems map[string][]map[string]string
+	EnrichmentItems map[string]map[string]map[string]string
 	RetryCount      int
 	IsValid         bool
 	CacheLock       sync.RWMutex

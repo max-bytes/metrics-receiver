@@ -17,14 +17,12 @@ func TestBasicEnrichment(t *testing.T) {
 		LookupAttribute: "Test-Lookupattribute",
 	}
 
-	ForceSetEnrichmentCache([]map[string]string{
-		{
-			"Test-Lookupattribute": "123",
-			"test":                 "foo",
+	ForceSetEnrichmentCache(map[string]map[string]string{
+		"123": {
+			"test": "foo",
 		},
-		{
-			"Test-Lookupattribute": "456",
-			"test":                 "bar",
+		"456": {
+			"test": "bar",
 		},
 	}, config.Name)
 
