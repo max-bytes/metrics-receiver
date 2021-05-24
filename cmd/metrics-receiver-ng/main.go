@@ -116,7 +116,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsTimescale {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := timescale.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
+					err := timescale.Write(splittedRows, &outputConfig, nil)
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to timescale: %v", err)
@@ -127,7 +127,7 @@ func main() {
 				for _, outputConfig := range cfg.OutputsInflux {
 					var splittedRows = measurementSplitter(internalMetrics.incomingMetrics)
 
-					err := influx.Write(splittedRows, &outputConfig, config.EnrichmentSet{})
+					err := influx.Write(splittedRows, &outputConfig, nil)
 
 					if err != nil {
 						logrus.Errorf("Error writing internal metrics to influx: %v", err)
@@ -207,7 +207,6 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
 		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
-
 		if enrichmentSetErr != nil {
 			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
 			return
@@ -227,7 +226,6 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
 		enrichmentSet, enrichmentSetErr := findEnrichmentSetByName(outputConfig.EnrichmentType)
-
 		if enrichmentSetErr != nil {
 			http.Error(w, enrichmentSetErr.Error(), http.StatusBadRequest)
 			return
@@ -269,19 +267,19 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func findEnrichmentSetByName(name string) (config.EnrichmentSet, error) {
+func findEnrichmentSetByName(name string) (*config.EnrichmentSet, error) {
 	if name == "" {
-		return config.EnrichmentSet{}, nil
+		return nil, nil
 	}
 
 	for _, v := range cfg.EnrichmentSets.Sets {
 		if name == v.Name {
-			return v, nil
+			return &v, nil
 		}
 	}
 
 	err := fmt.Sprintf("The configured enrichmentset {%s} could not be found!", name)
-	return config.EnrichmentSet{}, errors.New(err)
+	return nil, errors.New(err)
 }
 
 func measurementSplitter(input []general.Point) []general.PointGroup {

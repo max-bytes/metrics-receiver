@@ -7,11 +7,10 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go"
 	influxdb1 "github.com/influxdata/influxdb1-client/v2"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet config.EnrichmentSet) error {
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSet *config.EnrichmentSet) error {
 	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSet)
 
 	if err != nil {
@@ -35,7 +34,7 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enri
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet config.EnrichmentSet) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSet *config.EnrichmentSet) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
@@ -44,43 +43,18 @@ func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enric
 		if _, ok := cfg.Measurements[measurement]; !ok {
 			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
-
 		var measurementConfig = cfg.Measurements[measurement]
 
-		if measurementConfig.Ignore {
+		processedPoints, err := general.ProcessMeasurementPoints(points, &measurementConfig, cfg, enrichmentSet)
+		if err != nil {
+			return nil, err
+		}
+		if len(processedPoints) == 0 {
 			continue
 		}
 
-		var addedTags map[string]string = nil
-
-		if measurementConfig.AddedTags != nil {
-			addedTags = measurementConfig.AddedTags
-		}
-
-		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, cfg)
-		}
-
-		for _, point := range points {
-
-			var tags = point.Tags
-
-			tags, err := enrichments.EnrichMetrics(tags, enrichmentSet)
-
-			if err != nil {
-				return nil, err
-			}
-
-			for k, v := range addedTags {
-				tags[k] = v
-			}
-
-			writePoints = append(writePoints, general.Point{
-				Measurement: measurement,
-				Fields:      point.Fields,
-				Tags:        tags,
-				Timestamp:   point.Timestamp})
-
+		for _, point := range processedPoints {
+			writePoints = append(writePoints, point)
 		}
 	}
 

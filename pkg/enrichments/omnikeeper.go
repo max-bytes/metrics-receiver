@@ -50,8 +50,9 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, setName
 		}
 		enrichmentItems = append(enrichmentItems, item)
 	}
-
+	enrichmentsCache.CacheLock.Lock()
 	enrichmentsCache.EnrichmentItems[setName] = enrichmentItems
+	enrichmentsCache.CacheLock.Unlock()
 }
 
 func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map[string]okclient.EffectiveTraitDTO, error) {
@@ -86,9 +87,13 @@ func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map
 	return resp, nil
 }
 
-func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (map[string]string, error) {
+func EnrichMetrics(tags map[string]string, enrichmentSet *config.EnrichmentSet) (map[string]string, error) {
+	if enrichmentSet == nil { // no/nil enrichment set specified, do no enrichment and return passed in tags
+		return tags, nil
+	}
+
 	if !enrichmentsCache.IsValid {
-		return nil, errors.New("Failed to enirich metrics dute to invalid enrichments cache!")
+		return nil, errors.New("Failed to enrich metrics due to invalid enrichments cache!")
 	}
 
 	if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
@@ -98,8 +103,10 @@ func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (
 			tagsCopy[k] = v
 		}
 
+		enrichmentsCache.CacheLock.RLock()
 		var traitAttributes = enrichmentsCache.EnrichmentItems[enrichmentSet.Name]
 		for _, attributes := range traitAttributes {
+			// TODO: this is really slow, consider replacing it with a map+lookup
 			if value, ok := attributes[enrichmentSet.LookupAttribute]; value != lookupTagValue || !ok {
 				continue
 			}
@@ -112,6 +119,7 @@ func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (
 
 			break
 		}
+		enrichmentsCache.CacheLock.RUnlock()
 
 		return tagsCopy, nil
 	}
@@ -120,14 +128,21 @@ func EnrichMetrics(tags map[string]string, enrichmentSet config.EnrichmentSet) (
 	return tags, nil
 }
 
+func ForceSetEnrichmentCache(enrichmentItems []map[string]string, cacheEntryName string) {
+	enrichmentsCache.CacheLock.Lock()
+	enrichmentsCache.EnrichmentItems[cacheEntryName] = enrichmentItems
+	enrichmentsCache.IsValid = true
+	enrichmentsCache.CacheLock.Unlock()
+}
+
 var enrichmentsCache *Cache = &Cache{
 	EnrichmentItems: map[string][]map[string]string{},
-	CacheLock:       sync.Mutex{},
+	CacheLock:       sync.RWMutex{},
 }
 
 type Cache struct {
 	EnrichmentItems map[string][]map[string]string
 	RetryCount      int
 	IsValid         bool
-	CacheLock       sync.Mutex
+	CacheLock       sync.RWMutex
 }

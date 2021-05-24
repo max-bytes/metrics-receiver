@@ -50,12 +50,8 @@ type OutputTimescale struct {
 	EnrichmentType   string                          `json:"enrichment_type"`
 }
 
-func (c *OutputTimescale) GetTagfilterInclude() map[string][]string {
-	return c.TagfilterInclude
-}
-func (c *OutputTimescale) GetTagfilterBlock() map[string][]string {
-	return c.TagfilterBlock
-}
+func (c *OutputTimescale) GetTagfilterInclude() map[string][]string { return c.TagfilterInclude }
+func (c *OutputTimescale) GetTagfilterBlock() map[string][]string   { return c.TagfilterBlock }
 
 type OutputInflux struct {
 	TagfilterInclude map[string][]string          `json:"tagfilter_include"`
@@ -72,27 +68,38 @@ type OutputInflux struct {
 	EnrichmentType   string                       `json:"enrichment_type"`
 }
 
-func (c *OutputInflux) GetTagfilterInclude() map[string][]string {
-	return c.TagfilterInclude
-}
-func (c *OutputInflux) GetTagfilterBlock() map[string][]string {
-	return c.TagfilterBlock
+func (c *OutputInflux) GetTagfilterInclude() map[string][]string { return c.TagfilterInclude }
+func (c *OutputInflux) GetTagfilterBlock() map[string][]string   { return c.TagfilterBlock }
+
+type MeasurementConfig interface {
+	GetAddedTags() map[string]string
+	GetIgnore() bool
+	GetIgnoreFiltering() bool
 }
 
 type MeasurementTimescale struct {
 	AddedTags       map[string]string
+	Ignore          bool
+	IgnoreFiltering bool
+
 	FieldsAsColumns []string
 	TagsAsColumns   []string
 	TargetTable     string
-	Ignore          bool
-	IgnoreFiltering bool
 }
+
+func (c *MeasurementTimescale) GetAddedTags() map[string]string { return c.AddedTags }
+func (c *MeasurementTimescale) GetIgnore() bool                 { return c.Ignore }
+func (c *MeasurementTimescale) GetIgnoreFiltering() bool        { return c.IgnoreFiltering }
 
 type MeasurementInflux struct {
 	AddedTags       map[string]string
 	Ignore          bool
 	IgnoreFiltering bool
 }
+
+func (c *MeasurementInflux) GetAddedTags() map[string]string { return c.AddedTags }
+func (c *MeasurementInflux) GetIgnore() bool                 { return c.Ignore }
+func (c *MeasurementInflux) GetIgnoreFiltering() bool        { return c.IgnoreFiltering }
 
 type EnrichmentSets struct {
 	Sets            []EnrichmentSet `json:"sets"`

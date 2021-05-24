@@ -2,9 +2,48 @@ package general
 
 import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
+	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
 )
 
-func FilterPoints(points []Point, c config.Tagfilter) []Point {
+func ProcessMeasurementPoints(points []Point, measurementConfig config.MeasurementConfig, outputConfig config.Tagfilter, enrichmentSet *config.EnrichmentSet) ([]Point, error) {
+
+	if measurementConfig.GetIgnore() {
+		return []Point{}, nil
+	}
+
+	if !measurementConfig.GetIgnoreFiltering() {
+		points = filterPoints(points, outputConfig)
+	}
+
+	var addedTags map[string]string = nil
+	if measurementConfig.GetAddedTags() != nil {
+		addedTags = measurementConfig.GetAddedTags()
+	}
+
+	var outputPoints []Point
+	for _, point := range points {
+
+		var tags = point.Tags
+
+		tags, err := enrichments.EnrichMetrics(tags, enrichmentSet)
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range addedTags {
+			tags[k] = v
+		}
+
+		outputPoints = append(outputPoints, Point{
+			Measurement: point.Measurement,
+			Fields:      point.Fields,
+			Tags:        tags,
+			Timestamp:   point.Timestamp})
+	}
+	return outputPoints, nil
+}
+
+func filterPoints(points []Point, c config.Tagfilter) []Point {
 
 	var tagfilterInclude map[string][]string = c.GetTagfilterInclude()
 	var filteredPoints []Point

@@ -7,11 +7,10 @@ import (
 
 	"github.com/jackc/pgx"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) error {
+func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet *config.EnrichmentSet) error {
 	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSet)
 
 	if buildDBRowsErr != nil {
@@ -27,7 +26,7 @@ func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enri
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet config.EnrichmentSet) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSet *config.EnrichmentSet) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
@@ -36,44 +35,24 @@ func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, e
 		if _, ok := cfg.Measurements[measurement]; !ok {
 			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
-
 		var measurementConfig = cfg.Measurements[measurement]
 
-		if measurementConfig.Ignore {
+		processedPoints, err := general.ProcessMeasurementPoints(points, &measurementConfig, cfg, enrichmentSet)
+		if err != nil {
+			return nil, err
+		}
+		if len(processedPoints) == 0 {
 			continue
 		}
 
 		var tagsAsColumns = measurementConfig.TagsAsColumns
 		var fieldsAsColumns = measurementConfig.FieldsAsColumns
 
-		var addedTags map[string]string = nil
-
-		if measurementConfig.AddedTags != nil {
-			addedTags = measurementConfig.AddedTags
-		}
-
 		var insertRows [][]interface{}
-
-		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, cfg)
-		}
-
-		for _, point := range points {
+		for _, point := range processedPoints {
 
 			var tags = point.Tags
-
-			tags, err := enrichments.EnrichMetrics(tags, enrichmentSet)
-
-			if err != nil {
-				return nil, err
-			}
-
-			for k, v := range addedTags {
-				tags[k] = v
-			}
-
 			var tagColumnValues []interface{}
-
 			for _, v := range tagsAsColumns {
 				if _, ok := tags[v]; ok {
 					tagColumnValues = append(tagColumnValues, tags[v])
@@ -92,7 +71,6 @@ func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, e
 
 			var fields = point.Fields
 			var fieldColumnValues []interface{}
-
 			for _, v := range fieldsAsColumns {
 				if _, ok := fields[v]; ok {
 					fieldColumnValues = append(fieldColumnValues, fields[v])
