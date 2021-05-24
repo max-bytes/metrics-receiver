@@ -71,6 +71,8 @@ func main() {
 				err := enrichments.FetchEnrichments(cfg.Enrichment)
 				if err != nil {
 					logrus.Errorf("Error trying to update enrichment chache: %s", err)
+				} else {
+					logrus.Debug("Fetched enrichments")
 				}
 			}
 		}()
@@ -108,16 +110,17 @@ func main() {
 		go func() {
 			logrus.Infof("Started sending internal metrics...")
 			for range time.Tick(time.Duration(cfg.InternalMetricsFlushInterval * int(time.Second))) {
-				logrus.Debugf("Sending internal metrics")
 				internalMetrics.internalMetricsLock.Lock()
 
 				// NOTE: we can't really treat critical errors different here, so we just log the error in both cases
 				criticalError, nonCriticalErrors := writeOutputs(internalMetrics.incomingMetrics)
-				if criticalError != nil {
-					logrus.Errorf("Error writing internal metrics: %v", criticalError)
-				}
 				for _, nonCriticalError := range nonCriticalErrors {
-					logrus.Errorf("Error writing internal metrics: %v", nonCriticalError)
+					logrus.Warnf("Non-critical error writing internal metrics: %v", nonCriticalError)
+				}
+				if criticalError != nil {
+					logrus.Errorf("Critical error writing internal metrics: %v", criticalError)
+				} else {
+					logrus.Debugf("Sent internal metrics")
 				}
 
 				internalMetrics.incomingMetrics = make([]general.Point, 0)
@@ -194,7 +197,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		for _, nonCriticalError := range nonCriticalErrors {
-			logrus.Errorf(nonCriticalError.Error())
+			logrus.Warnf(nonCriticalError.Error())
 		}
 
 		logrus.Printf("Successfully processed influx write request; lines: %d \n", len(points))
