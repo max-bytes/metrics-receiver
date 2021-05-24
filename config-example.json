@@ -4,7 +4,7 @@
     "internal_metrics_collect_interval": 10,
     "internal_metrics_flush_interval": 60,
     "internal_metrics_measurement": "internal_metrics",
-    "enrichment_sets": {
+    "enrichment": {
         "retry_count": 6,
         "collect_interval": 60,
         "username": "omnikeeper-client-library-test",

@@ -31,7 +31,7 @@ type Configuration struct {
 	InternalMetricsCollectInterval int               `json:"internal_metrics_collect_interval"`
 	InternalMetricsFlushInterval   int               `json:"internal_metrics_flush_interval"`
 	InternalMetricsMeasurement     string            `json:"internal_metrics_measurement"`
-	EnrichmentSets                 EnrichmentSets    `json:"enrichment_sets"`
+	Enrichment                     Enrichment        `json:"enrichment"`
 	OutputsTimescale               []OutputTimescale `json:"outputs_timescaledb"`
 	OutputsInflux                  []OutputInflux    `json:"outputs_influxdb"`
 }
@@ -101,7 +101,7 @@ func (c *MeasurementInflux) GetAddedTags() map[string]string { return c.AddedTag
 func (c *MeasurementInflux) GetIgnore() bool                 { return c.Ignore }
 func (c *MeasurementInflux) GetIgnoreFiltering() bool        { return c.IgnoreFiltering }
 
-type EnrichmentSets struct {
+type Enrichment struct {
 	Sets            []EnrichmentSet `json:"sets"`
 	RetryCount      int             `json:"retry_count"`
 	CollectInterval int             `json:"collect_interval"`

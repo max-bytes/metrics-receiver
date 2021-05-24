@@ -59,16 +59,16 @@ func main() {
 	}
 	logrus.SetLevel(parsedLogLevel)
 
-	if cfg.EnrichmentSets.CollectInterval > 0 {
+	if cfg.Enrichment.CollectInterval > 0 {
 		logrus.Infof("Started fetching enrichments...")
-		err := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+		err := enrichments.FetchEnrichments(cfg.Enrichment)
 		if err != nil {
 			logrus.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
 		}
 
 		go func() {
-			for range time.Tick(time.Duration(cfg.EnrichmentSets.CollectInterval * int(time.Second))) {
-				err := enrichments.FetchEnrichments(cfg.EnrichmentSets)
+			for range time.Tick(time.Duration(cfg.Enrichment.CollectInterval * int(time.Second))) {
+				err := enrichments.FetchEnrichments(cfg.Enrichment)
 				if err != nil {
 					logrus.Errorf("Error trying to update enrichment chache: %s", err)
 				}
@@ -268,7 +268,7 @@ func findEnrichmentSetByName(name string) (*config.EnrichmentSet, error) {
 		return nil, nil
 	}
 
-	for _, v := range cfg.EnrichmentSets.Sets {
+	for _, v := range cfg.Enrichment.Sets {
 		if name == v.Name {
 			return &v, nil
 		}

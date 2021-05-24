@@ -14,7 +14,7 @@ import (
 
 var apiVersion = "1"
 
-func FetchEnrichments(cfg config.EnrichmentSets) error {
+func FetchEnrichments(cfg config.Enrichment) error {
 
 	for _, enrichmentSet := range cfg.Sets {
 		result, err := getCisByTrait(enrichmentSet, cfg)
@@ -67,7 +67,7 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichm
 	enrichmentsCache.CacheLock.Unlock()
 }
 
-func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.EnrichmentSets) (map[string]okclient.EffectiveTraitDTO, error) {
+func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.Enrichment) (map[string]okclient.EffectiveTraitDTO, error) {
 
 	oauth2cfg := &oauth2.Config{
 		ClientID: cfgFull.ClientID,

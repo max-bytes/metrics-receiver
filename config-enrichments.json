@@ -1,6 +1,6 @@
 {
     "port": 8080,
-    "enrichment_sets": {
+    "enrichment": {
         "minimal": {
             "lookup_tag": "ciid",
             "lookup_attribute": "cmdb_ciid",
