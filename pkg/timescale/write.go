@@ -20,7 +20,7 @@ func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enri
 	if len(rows) > 0 {
 		insertErr := insertRowsTimescale(rows, cfg)
 		if insertErr != nil {
-			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
+			return fmt.Errorf("An error ocurred while inserting rows into timescaleDB: %w", insertErr)
 		}
 	}
 	return nil

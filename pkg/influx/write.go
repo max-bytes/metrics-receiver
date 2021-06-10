@@ -28,7 +28,7 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enri
 			return fmt.Errorf("Unknown influx version specified: %d", config.Version)
 		}
 		if insertErr != nil {
-			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
+			return fmt.Errorf("An error ocurred while inserting rows into influxDB: %w", insertErr)
 		}
 	}
 	return nil
