@@ -6,6 +6,7 @@ RUN apk add git # needed for fetching (internal) go modules from git repository
 # RUN echo $CI_JOB_TOKEN
 # RUN git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@www.mhx.at/".insteadOf "https://www.mhx.at/"
 
+RUN apk add curl
 RUN curl -v www.mhx.at/gitlab
 
 RUN git clone www.mhx.at/gitlab/landscape/omnikeeper-client-go.git -v
