@@ -8,8 +8,7 @@ RUN apk add git # needed for fetching (internal) go modules from git repository
 
 RUN apk add curl
 RUN curl -v www.mhx.at/gitlab
-
-RUN git clone www.mhx.at/gitlab/landscape/omnikeeper-client-go.git -v
+RUN git clone http://www.mhx.at/gitlab/landscape/omnikeeper-client-go.git -v
 
 RUN GOPRIVATE=www.mhx.at go mod vendor
 RUN echo $GOPATH
