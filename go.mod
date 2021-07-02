@@ -16,8 +16,9 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
-	golang.org/x/net v0.0.0-20210415231046-e915ea6b2b7d // indirect
-	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	google.golang.org/appengine v1.6.7 // indirect
-	www.mhx.at/gitlab/landscape/omnikeeper-client-go.git v0.0.0-20210417064028-5aae45047ebc
+	google.golang.org/protobuf v1.27.1 // indirect
+	www.mhx.at/gitlab/landscape/omnikeeper-client-go.git v0.0.0-20210621142016-31aba0e86185
 )
