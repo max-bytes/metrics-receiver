@@ -1,6 +1,7 @@
 FROM golang:1.14.3-alpine AS build
 WORKDIR /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 COPY . /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
+RUN apk add git # needed for fetching (internal) go modules from git repository
 RUN go mod vendor
 RUN echo $GOPATH
 ENV CGO_ENABLED=0
