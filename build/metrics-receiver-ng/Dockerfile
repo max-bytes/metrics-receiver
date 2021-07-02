@@ -3,8 +3,10 @@ WORKDIR /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 COPY . /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 RUN apk add git # needed for fetching (internal) go modules from git repository
 
-# RUN echo $CI_JOB_TOKEN
-# RUN git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@www.mhx.at/".insteadOf "https://www.mhx.at/"
+ARG CI_JOB_TOKEN
+ENV CI_JOB_TOKEN=$CI_JOB_TOKEN
+RUN echo $CI_JOB_TOKEN
+RUN git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@www.mhx.at/".insteadOf "https://www.mhx.at/"
 
 RUN apk add curl
 RUN curl -v www.mhx.at/gitlab
