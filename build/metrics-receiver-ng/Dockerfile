@@ -8,9 +8,9 @@ ENV CI_JOB_TOKEN=$CI_JOB_TOKEN
 RUN echo $CI_JOB_TOKEN
 RUN git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@www.mhx.at/".insteadOf "https://www.mhx.at/"
 
-RUN git config --list
+#RUN git config --list
 
-RUN git clone https://www.mhx.at/gitlab/landscape/omnikeeper-client-go.git -v
+#RUN git clone https://www.mhx.at/gitlab/landscape/omnikeeper-client-go.git -v
 
 RUN GOPRIVATE=www.mhx.at go mod vendor
 RUN echo $GOPATH
