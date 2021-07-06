@@ -2,11 +2,12 @@ FROM golang:1.14.3-alpine AS build
 WORKDIR /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 COPY . /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
 
+# add ca-certificates, later copy them to final image
+RUN apk update && apk --no-cache add ca-certificates && update-ca-certificates
+
  # git needed for fetching (internal) go modules from git repository
 RUN apk add git
 
-# add ca-certificates, later copy them to final image
-RUN apk --no-cache add ca-certificates
 
 # "patch" git config to add authentication using CI_JOB_TOKEN as password
 ARG CI_JOB_TOKEN
