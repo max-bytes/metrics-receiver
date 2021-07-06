@@ -31,13 +31,22 @@ type Configuration struct {
 	InternalMetricsCollectInterval int               `json:"internal_metrics_collect_interval"`
 	InternalMetricsFlushCycle      int               `json:"internal_metrics_flush_cycle"`
 	InternalMetricsMeasurement     string            `json:"internal_metrics_measurement"`
+	Enrichment                     Enrichment        `json:"enrichment"`
 	OutputsTimescale               []OutputTimescale `json:"outputs_timescaledb"`
 	OutputsInflux                  []OutputInflux    `json:"outputs_influxdb"`
 }
 
-type Tagfilter interface {
+type OutputConfig interface {
 	GetTagfilterInclude() map[string][]string
 	GetTagfilterBlock() map[string][]string
+	GetMeasurementConfig(name string) (MeasurementConfig, bool)
+}
+
+type MeasurementConfig interface {
+	GetAddedTags() map[string]string
+	GetIgnore() bool
+	GetIgnoreFiltering() bool
+	GetEnrichment() string
 }
 
 type OutputTimescale struct {
@@ -48,11 +57,11 @@ type OutputTimescale struct {
 	Connection       string                          `json:"connection"`
 }
 
-func (c *OutputTimescale) GetTagfilterInclude() map[string][]string {
-	return c.TagfilterInclude
-}
-func (c *OutputTimescale) GetTagfilterBlock() map[string][]string {
-	return c.TagfilterBlock
+func (c *OutputTimescale) GetTagfilterInclude() map[string][]string { return c.TagfilterInclude }
+func (c *OutputTimescale) GetTagfilterBlock() map[string][]string   { return c.TagfilterBlock }
+func (c *OutputTimescale) GetMeasurementConfig(name string) (MeasurementConfig, bool) {
+	m, ok := c.Measurements[name]
+	return m, ok
 }
 
 type OutputInflux struct {
@@ -69,24 +78,60 @@ type OutputInflux struct {
 	Password         string                       `json:"password"`
 }
 
-func (c *OutputInflux) GetTagfilterInclude() map[string][]string {
-	return c.TagfilterInclude
-}
-func (c *OutputInflux) GetTagfilterBlock() map[string][]string {
-	return c.TagfilterBlock
+func (c *OutputInflux) GetTagfilterInclude() map[string][]string { return c.TagfilterInclude }
+func (c *OutputInflux) GetTagfilterBlock() map[string][]string   { return c.TagfilterBlock }
+func (c *OutputInflux) GetMeasurementConfig(name string) (MeasurementConfig, bool) {
+	m, ok := c.Measurements[name]
+	return m, ok
 }
 
 type MeasurementTimescale struct {
 	AddedTags       map[string]string
+	Ignore          bool
+	IgnoreFiltering bool
+
 	FieldsAsColumns []string
 	TagsAsColumns   []string
 	TargetTable     string
-	Ignore          bool
-	IgnoreFiltering bool
+
+	Enrichment string
 }
+
+func (c MeasurementTimescale) GetAddedTags() map[string]string { return c.AddedTags }
+func (c MeasurementTimescale) GetIgnore() bool                 { return c.Ignore }
+func (c MeasurementTimescale) GetIgnoreFiltering() bool        { return c.IgnoreFiltering }
+func (c MeasurementTimescale) GetEnrichment() string           { return c.Enrichment }
 
 type MeasurementInflux struct {
 	AddedTags       map[string]string
 	Ignore          bool
 	IgnoreFiltering bool
+
+	Enrichment string
+}
+
+func (c MeasurementInflux) GetAddedTags() map[string]string { return c.AddedTags }
+func (c MeasurementInflux) GetIgnore() bool                 { return c.Ignore }
+func (c MeasurementInflux) GetIgnoreFiltering() bool        { return c.IgnoreFiltering }
+func (c MeasurementInflux) GetEnrichment() string           { return c.Enrichment }
+
+type Enrichment struct {
+	Sets            []EnrichmentSet `json:"sets"`
+	RetryCount      int             `json:"retry_count"`
+	CollectInterval int             `json:"collect_interval"`
+	ServerURL       string          `json:"server_url"`
+	Username        string          `json:"username"`
+	Password        string          `json:"password"`
+	AuthURL         string          `json:"auth_url"`
+	TokenURL        string          `json:"token_url"`
+	ClientID        string          `json:"client_id"`
+}
+
+type EnrichmentSet struct {
+	Name                     string   `json:"name"`
+	TraitName                string   `json:"trait_name"`
+	TraitAttributeIdentifier string   `json:"trait_attribute_identifier"`
+	TraitAttributeList       []string `json:"trait_attribute_list"`
+	LayerIds                 []int64  `json:"layer_ids"`
+	LookupTag                string   `json:"lookup_tag"`
 }

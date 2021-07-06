@@ -10,8 +10,8 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) error {
-	var points, err = buildDBPointsInflux(groupedPoints, config)
+func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSets []config.EnrichmentSet) error {
+	var points, err = buildDBPointsInflux(groupedPoints, config, enrichmentSets)
 
 	if err != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", err)
@@ -28,52 +28,19 @@ func Write(groupedPoints []general.PointGroup, config *config.OutputInflux) erro
 			return fmt.Errorf("Unknown influx version specified: %d", config.Version)
 		}
 		if insertErr != nil {
-			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
+			return fmt.Errorf("An error ocurred while inserting rows into influxDB: %w", insertErr)
 		}
 	}
 	return nil
 }
 
-func buildDBPointsInflux(i []general.PointGroup, config *config.OutputInflux) ([]general.Point, error) {
+func buildDBPointsInflux(i []general.PointGroup, cfg *config.OutputInflux, enrichmentSets []config.EnrichmentSet) ([]general.Point, error) {
 	var writePoints []general.Point
 	for _, input := range i {
 		var points = input.Points
-		var measurement = input.Measurement
-
-		if _, ok := config.Measurements[measurement]; !ok {
-			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
-		}
-
-		var measurementConfig = config.Measurements[measurement]
-
-		if measurementConfig.Ignore {
-			continue
-		}
-
-		var addedTags map[string]string = nil
-
-		if measurementConfig.AddedTags != nil {
-			addedTags = measurementConfig.AddedTags
-		}
-
-		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, config)
-		}
 
 		for _, point := range points {
-
-			var tags = point.Tags
-
-			for k, v := range addedTags {
-				tags[k] = v
-			}
-
-			writePoints = append(writePoints, general.Point{
-				Measurement: measurement,
-				Fields:      point.Fields,
-				Tags:        tags,
-				Timestamp:   point.Timestamp})
-
+			writePoints = append(writePoints, point)
 		}
 	}
 
