@@ -5,6 +5,9 @@ COPY . /go/src/mhx.at/gitlab/landscape/metrics-receiver-ng
  # git needed for fetching (internal) go modules from git repository
 RUN apk add git
 
+# add ca-certificates, later copy them to final image
+RUN apk --no-cache add ca-certificates
+
 # "patch" git config to add authentication using CI_JOB_TOKEN as password
 ARG CI_JOB_TOKEN
 ENV CI_JOB_TOKEN=$CI_JOB_TOKEN
@@ -17,4 +20,5 @@ RUN go build -ldflags "-X main.version=$version" -o /out/metrics-receiver-ng ./c
 
 FROM scratch AS bin
 COPY --from=build /out/metrics-receiver-ng /
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["/metrics-receiver-ng"]
