@@ -1,40 +1,49 @@
 {
-    "port": 8080,
+    "port": 55580,
     "log_level": "trace",
-    "internal_metrics_collect_interval": 60,
-    "internal_metrics_flush_cycle": 1,
-    "internal_metrics_measurement": "metrics_receiver",
+    "internal_metrics_collect_interval": 0,
+    "internal_metrics_flush_cycle": 0,
+    "internal_metrics_measurement": "internal_metrics",
+    "enrichment": {
+        "retry_count": 6,
+        "collect_interval": 60,
+        "username": "omnikeeper-client-library-test",
+        "password": "omnikeeper-client-library-test",
+        "server_url": "https://10.0.0.43:45455",
+        "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
+        "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+        "client_id": "landscape-omnikeeper",
+		"sets": [
+			{
+				"name": "tss_ciids",
+				"trait_name": "tsa_tss_mapping",
+				"trait_attribute_identifier": "ciid_swiss",
+                "trait_attribute_list": ["ciid"],
+				"layer_ids": [6],
+				"lookup_tag": "ciid"
+			}
+		]
+    },
     "outputs_timescaledb": [
     {
         "tagfilter_include": {
-            "host": ["abc.com"]
         },
         "tagfilter_block": {
-           "service": ["ABC"],
-           "customer": ["stark"]
         },
         "write_strategy": "commit",
         "connection": "host=localhost port=55432 dbname=metrics user=postgres password=password sslmode=disable",
         "measurements": {
-            "value": {
-                "fieldsAsColumns": [
-                    "value",
-                    "warn",
-                    "crit",
-                    "min",
-                    "max"
-                ],
-                "tagsAsColumns": [
-                    "host",
-                    "service",
-                    "label",
-                    "uom",
-                    "ciname",
-                    "ciid",
-                    "monitoringprofile",
-                    "customer"
-                ],
+            "metric": {
+                "enrichment": "tss_ciids",
+                "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
+                "tagsAsColumns": ["host", "service", "label", "uom", "ciname", "ciid", "monitoringprofile", "customer"],
                 "targetTable": "metric"
+            },
+            "state": {
+                "enrichment": "tss_ciids",
+                "fieldsAsColumns": ["value"],
+                "tagsAsColumns": ["host", "service", "ciname", "ciid", "monitoringprofile", "customer"],
+                "targetTable": "state"
             },
             "rabbitmq_exchange": {
                 "addedTags": {
@@ -201,78 +210,5 @@
     }
     ],
     "outputs_influxdb":[
-        {
-            "tagfilter_include": {
-                "customer": ["*"]
-            },
-            "tagfilter_block": {
-                "customer": ["mhx"]
-            },
-            "version": 1,
-            "write_strategy": "best_effort",
-            "connection": "http://localhost:8086",
-            "db_name": "metric",
-            "org": "mhx",
-            "auth_token": "my-token",
-            "username": "",
-            "password": "",
-            "measurements": {
-                "value": {
-                },
-                "rabbitmq_exchange": {
-                },
-                "rabbitmq_queue": {
-                },
-                "rabbitmq_overview": {
-                },
-                "rabbitmq_node": {
-                },
-                "internal_memstats": {
-                },
-                "internal_agent": {
-                },
-                "internal_gather": {
-                    "ignore": true
-                },
-                "internal_write": {
-                    "ignore": true
-                },
-                "cpu": {
-                },
-                "disk": {
-                },
-                "diskio": {
-                },
-                "kernel_vmstat": {
-                },
-                "mem": {
-                },
-                "net": {
-                },
-                "nstat": {
-                },
-                "processes": {
-                },
-                "procstat": {
-                },
-                "procstat_lookup": {
-                },
-                "swap": {
-                },
-                "system": {
-                },
-                "metrics_receiver": {
-                    "fieldsAsColumns": [
-                        "received_messages",
-                        "received_lines",
-                        "received_bytes"
-                    ],
-                    "tagsAsColumns": [
-                    ],
-                    "targetTable": "metrics_receiver",
-                    "IgnoreFiltering": true
-                }
-            }
-        }
     ]
 }

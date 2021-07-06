@@ -10,60 +10,42 @@ import (
 	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
-func Write(groupedPoints []general.PointGroup, config *config.OutputTimescale) error {
-	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, config)
+func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) error {
+	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSets)
 
 	if buildDBRowsErr != nil {
 		return fmt.Errorf("An error ocurred while building db rows: %w", buildDBRowsErr)
 	}
 
 	if len(rows) > 0 {
-		insertErr := insertRowsTimescale(rows, config)
+		insertErr := insertRowsTimescale(rows, cfg)
 		if insertErr != nil {
-			return fmt.Errorf("An error ocurred while inserting db rows: %w", insertErr)
+			return fmt.Errorf("An error ocurred while inserting rows into timescaleDB: %w", insertErr)
 		}
 	}
 	return nil
 }
 
-func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale) ([]TimescaleRows, error) {
+func buildDBRowsTimescale(i []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) ([]TimescaleRows, error) {
 	var rows []TimescaleRows
 	for _, input := range i {
 		var points = input.Points
 		var measurement = input.Measurement
 
-		if _, ok := config.Measurements[measurement]; !ok {
+		if _, ok := cfg.Measurements[measurement]; !ok {
 			return nil, fmt.Errorf("Unknown measurement \"%s\" encountered", measurement)
 		}
+		var measurementConfig = cfg.Measurements[measurement]
 
-		var measurementConfig = config.Measurements[measurement]
-
-		if measurementConfig.Ignore {
-			continue
-		}
-
-		var addedTags map[string]string = nil
-
-		if measurementConfig.AddedTags != nil {
-			addedTags = measurementConfig.AddedTags
-		}
+		var tagsAsColumns = measurementConfig.TagsAsColumns
+		var fieldsAsColumns = measurementConfig.FieldsAsColumns
 
 		var insertRows [][]interface{}
-
-		if !measurementConfig.IgnoreFiltering {
-			points = general.FilterPoints(points, config)
-		}
-
 		for _, point := range points {
 
 			var tags = point.Tags
-
-			for k, v := range addedTags {
-				tags[k] = v
-			}
-
 			var tagColumnValues []interface{}
-			for _, v := range measurementConfig.TagsAsColumns {
+			for _, v := range tagsAsColumns {
 				if _, ok := tags[v]; ok {
 					tagColumnValues = append(tagColumnValues, tags[v])
 				} else {
@@ -74,15 +56,16 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 			// add tags (that are not mapped to colums) as data values
 			var tagDataValues map[string]interface{} = make(map[string]interface{})
 			for key, tagValue := range tags {
-				if !contains(measurementConfig.TagsAsColumns, key) {
+				if !contains(tagsAsColumns, key) {
 					tagDataValues[key] = tagValue
 				}
 			}
 
+			var fields = point.Fields
 			var fieldColumnValues []interface{}
-			for _, v := range measurementConfig.FieldsAsColumns {
-				if _, ok := point.Fields[v]; ok {
-					fieldColumnValues = append(fieldColumnValues, point.Fields[v])
+			for _, v := range fieldsAsColumns {
+				if _, ok := fields[v]; ok {
+					fieldColumnValues = append(fieldColumnValues, fields[v])
 				} else {
 					fieldColumnValues = append(fieldColumnValues, nil)
 				}
@@ -90,8 +73,8 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 
 			// add fields (that are not mapped to colums) as data values
 			var fieldDataValues map[string]interface{} = make(map[string]interface{})
-			for key, fieldValue := range point.Fields {
-				if !contains(measurementConfig.FieldsAsColumns, key) {
+			for key, fieldValue := range fields {
+				if !contains(fieldsAsColumns, key) {
 					fieldDataValues[key] = fieldValue
 				}
 			}
@@ -111,7 +94,7 @@ func buildDBRowsTimescale(i []general.PointGroup, config *config.OutputTimescale
 		var baseColumns []string = []string{"time", "data"}
 		targetTable := measurementConfig.TargetTable
 
-		allColumns := ArrayMerge(baseColumns, measurementConfig.FieldsAsColumns, measurementConfig.TagsAsColumns)
+		allColumns := ArrayMerge(baseColumns, fieldsAsColumns, tagsAsColumns)
 
 		rows = append(rows, TimescaleRows{allColumns, insertRows, targetTable})
 	}
