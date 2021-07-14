@@ -36,11 +36,11 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: "."
-          file: "./build/metrics-receiver-ng/Dockerfile"
+          file: "./build/metrics-receiver/Dockerfile"
           push: true
           build-args: |
             version=${{ env.VERSION }}
             repoUser=${{ github.actor }}
-            repoPassword=${{ secrets.GITHUB_TOKEN }}
+            repoPass=${{ secrets.GITHUB_TOKEN }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

@@ -3,8 +3,8 @@ package enrichments
 import (
 	"testing"
 
+	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
 	"github.com/stretchr/testify/require"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
 )
 
 func TestBasicEnrichment(t *testing.T) {

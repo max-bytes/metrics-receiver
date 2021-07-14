@@ -1,4 +1,4 @@
-module mhx.at/gitlab/landscape/metrics-receiver-ng
+module github.com/maximiliancsuk/metrics-receiver
 
 go 1.15
 
@@ -12,6 +12,7 @@ require (
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/lib/pq v1.10.0 // indirect
+	github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1
@@ -20,5 +21,4 @@ require (
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	www.mhx.at/gitlab/landscape/omnikeeper-client-go.git v0.0.0-20210621142016-31aba0e86185
 )

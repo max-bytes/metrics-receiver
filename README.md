@@ -1,4 +1,4 @@
-# metrics-receiver-ng
+# metrics-receiver
 
 TODO: improve
 

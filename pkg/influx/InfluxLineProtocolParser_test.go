@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
 	"github.com/stretchr/testify/assert"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
 )
 
 func TestBasicFunctionality(t *testing.T) {

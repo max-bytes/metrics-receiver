@@ -3,8 +3,8 @@ package general
 import (
 	"fmt"
 
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/enrichments"
 )
 
 func PreparePointGroups(i []PointGroup, cfg config.OutputConfig, enrichmentSets []config.EnrichmentSet) ([]PointGroup, error) {

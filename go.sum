@@ -144,6 +144,8 @@ github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVc
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.9/go.mod h1:YNRxwqDuOph6SZLI9vUUz6OYw3QyUt7WiY2yME+cCiQ=
 github.com/mattn/go-isatty v0.0.10/go.mod h1:qgIWMr58cqv1PHHyhnkY9lrL7etaEgOFcMEpPG5Rm84=
+github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196 h1:jNGdKk+zhiXuFVR+hOkD9W78vTJV3LWG2BTnVZaftPM=
+github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196/go.mod h1:gqDZsWMT3dGnixtZyV5tZhBhzaZq5eN3Rx+wfqdb7ZE=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -446,5 +448,3 @@ honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
-www.mhx.at/gitlab/landscape/omnikeeper-client-go.git v0.0.0-20210621142016-31aba0e86185 h1:OhuR/zU4ZWpqeKm2LByu8Dgdi1YVbtYwyZcS9nxaH94=
-www.mhx.at/gitlab/landscape/omnikeeper-client-go.git v0.0.0-20210621142016-31aba0e86185/go.mod h1:Ct4SG/h9Srs6iivZnnEwx8qatCK7VtmkkoWIKovSPy4=

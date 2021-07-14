@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgx"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
 )
 
 func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) error {

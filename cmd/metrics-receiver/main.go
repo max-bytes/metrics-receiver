@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/enrichments"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/influx"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/timescale"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/enrichments"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/influx"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/timescale"
 )
 
 var (

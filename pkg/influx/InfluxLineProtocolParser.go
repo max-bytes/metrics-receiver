@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/general"
+	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
 )
 
 func Parse(input string, currentTimestamp time.Time) ([]general.Point, error) {

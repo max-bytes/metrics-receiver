@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
+	okclient "github.com/maximiliancsuk/omnikeeper-client-go"
 	"golang.org/x/oauth2"
-	"mhx.at/gitlab/landscape/metrics-receiver-ng/pkg/config"
-	okclient "www.mhx.at/gitlab/landscape/omnikeeper-client-go.git"
 )
 
 var apiVersion = "1"
