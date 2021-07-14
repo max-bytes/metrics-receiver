@@ -12,11 +12,12 @@ RUN apk add git
 # "patch" git config to add authentication for private go repository
 ARG repoUser
 ARG repoPass
-ENV repoUser=$repoUser
-ENV repoPass=$repoPass
-RUN git config --global url."https://${repoUser}:${repoPass}@github.com/maximiliancsuk".insteadOf "https://github.com/maximiliancsuk"
+# ENV repoUser=$repoUser
+# ENV repoPass=$repoPass
+# RUN git config --global url."https://${repoUser}:${repoPass}@github.com/maximiliancsuk".insteadOf "https://github.com/maximiliancsuk"
 
-RUN GOPRIVATE="github.com/maximiliancsuk/*" go mod vendor
+# RUN GOPRIVATE="github.com/maximiliancsuk/*" go mod vendor
+RUN go mod vendor
 ENV CGO_ENABLED=0
 ARG version
 RUN go build -ldflags "-X main.version=$version" -o /out/metrics-receiver ./cmd/metrics-receiver
