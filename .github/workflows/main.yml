@@ -40,7 +40,5 @@ jobs:
           push: true
           build-args: |
             version=${{ env.VERSION }}
-            repoUser=${{ github.actor }}
-            repoPass=${{ secrets.GITHUB_TOKEN }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

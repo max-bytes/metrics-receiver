@@ -8,15 +8,6 @@ RUN apk update && apk --no-cache add ca-certificates && update-ca-certificates
  # git needed for fetching (internal) go modules from git repository
 RUN apk add git
 
-
-# "patch" git config to add authentication for private go repository
-ARG repoUser
-ARG repoPass
-# ENV repoUser=$repoUser
-# ENV repoPass=$repoPass
-# RUN git config --global url."https://${repoUser}:${repoPass}@github.com/maximiliancsuk".insteadOf "https://github.com/maximiliancsuk"
-
-# RUN GOPRIVATE="github.com/maximiliancsuk/*" go mod vendor
 RUN go mod vendor
 ENV CGO_ENABLED=0
 ARG version
