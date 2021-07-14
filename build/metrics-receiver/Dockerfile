@@ -16,7 +16,7 @@ ENV repoUser=$repoUser
 ENV repoPass=$repoPass
 RUN git config --global url."https://${repoUser}:${repoPass}@www.github.com/".insteadOf "https://www.github.com/"
 
-RUN GOPRIVATE=www.github.com/maximiliancsuk/* go mod vendor
+RUN GOPRIVATE=github.com/maximiliancsuk/* go mod vendor
 ENV CGO_ENABLED=0
 ARG version
 RUN go build -ldflags "-X main.version=$version" -o /out/metrics-receiver ./cmd/metrics-receiver
