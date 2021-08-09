@@ -1,4 +1,4 @@
-module github.com/maximiliancsuk/metrics-receiver
+module github.com/max-bytes/metrics-receiver
 
 go 1.15
 
@@ -12,7 +12,7 @@ require (
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/lib/pq v1.10.0 // indirect
-	github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196
+	github.com/max-bytes/omnikeeper-client-go v0.0.0-20210809111854-7128624bb008
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.6.1

@@ -144,8 +144,8 @@ github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVc
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.9/go.mod h1:YNRxwqDuOph6SZLI9vUUz6OYw3QyUt7WiY2yME+cCiQ=
 github.com/mattn/go-isatty v0.0.10/go.mod h1:qgIWMr58cqv1PHHyhnkY9lrL7etaEgOFcMEpPG5Rm84=
-github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196 h1:jNGdKk+zhiXuFVR+hOkD9W78vTJV3LWG2BTnVZaftPM=
-github.com/maximiliancsuk/omnikeeper-client-go v0.0.0-20210714144333-679e89e87196/go.mod h1:gqDZsWMT3dGnixtZyV5tZhBhzaZq5eN3Rx+wfqdb7ZE=
+github.com/max-bytes/omnikeeper-client-go v0.0.0-20210809111854-7128624bb008 h1:rzUzSnqMj+oI0+5UNozNxSp+noZRdPtcyVUDftPzwFM=
+github.com/max-bytes/omnikeeper-client-go v0.0.0-20210809111854-7128624bb008/go.mod h1:1qFaUUZMo+Ux4yTHM8pcfOQoqYGR0lzzTTtdsHRkubI=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=

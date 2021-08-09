@@ -6,8 +6,8 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go"
 	influxdb1 "github.com/influxdata/influxdb1-client/v2"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
+	"github.com/max-bytes/metrics-receiver/pkg/config"
+	"github.com/max-bytes/metrics-receiver/pkg/general"
 )
 
 func Write(groupedPoints []general.PointGroup, config *config.OutputInflux, enrichmentSets []config.EnrichmentSet) error {

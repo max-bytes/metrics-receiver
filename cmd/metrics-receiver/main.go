@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/max-bytes/metrics-receiver/pkg/config"
+	"github.com/max-bytes/metrics-receiver/pkg/enrichments"
+	"github.com/max-bytes/metrics-receiver/pkg/general"
+	"github.com/max-bytes/metrics-receiver/pkg/influx"
+	"github.com/max-bytes/metrics-receiver/pkg/timescale"
 	"github.com/sirupsen/logrus"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/enrichments"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/influx"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/timescale"
 )
 
 var (

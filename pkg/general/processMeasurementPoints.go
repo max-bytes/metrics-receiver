@@ -3,8 +3,8 @@ package general
 import (
 	"fmt"
 
-	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
-	"github.com/maximiliancsuk/metrics-receiver/pkg/enrichments"
+	"github.com/max-bytes/metrics-receiver/pkg/config"
+	"github.com/max-bytes/metrics-receiver/pkg/enrichments"
 )
 
 func PreparePointGroups(i []PointGroup, cfg config.OutputConfig, enrichmentSets []config.EnrichmentSet) ([]PointGroup, error) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
+	"github.com/max-bytes/metrics-receiver/pkg/general"
 	"github.com/stretchr/testify/assert"
 )
 

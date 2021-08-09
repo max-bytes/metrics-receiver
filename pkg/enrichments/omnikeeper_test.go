@@ -3,7 +3,7 @@ package enrichments
 import (
 	"testing"
 
-	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
+	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/stretchr/testify/require"
 )
 

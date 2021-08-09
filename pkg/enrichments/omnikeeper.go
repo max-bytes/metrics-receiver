@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maximiliancsuk/metrics-receiver/pkg/config"
-	okclient "github.com/maximiliancsuk/omnikeeper-client-go"
+	"github.com/max-bytes/metrics-receiver/pkg/config"
+	okclient "github.com/max-bytes/omnikeeper-client-go"
 	"golang.org/x/oauth2"
 )
 

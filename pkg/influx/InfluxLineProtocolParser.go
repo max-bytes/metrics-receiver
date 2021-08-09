@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maximiliancsuk/metrics-receiver/pkg/general"
+	"github.com/max-bytes/metrics-receiver/pkg/general"
 )
 
 func Parse(input string, currentTimestamp time.Time) ([]general.Point, error) {

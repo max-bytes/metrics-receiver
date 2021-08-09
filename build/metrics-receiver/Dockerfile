@@ -1,6 +1,6 @@
 FROM golang:1.14.3-alpine AS build
-WORKDIR /go/src/github.com/maximiliancsuk/metrics-receiver
-COPY . /go/src/github.com/maximiliancsuk/metrics-receiver
+WORKDIR /go/src/github.com/max-bytes/metrics-receiver
+COPY . /go/src/github.com/max-bytes/metrics-receiver
 
 # add ca-certificates, later copy them to final image
 RUN apk update && apk --no-cache add ca-certificates && update-ca-certificates
