@@ -8,7 +8,7 @@
         "retry_count": 6,
         "collect_interval": 60,
         "username": "omnikeeper-client-library-test",
-        "password": "omnikeeper-client-library-test",
+        "password": "redacted",
         "server_url": "https://10.0.0.43:45455",
         "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
         "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
