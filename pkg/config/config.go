@@ -129,9 +129,10 @@ type Enrichment struct {
 
 type EnrichmentSet struct {
 	Name                     string   `json:"name"`
-	TraitName                string   `json:"trait_name"`
+	TraitID                  string   `json:"trait_id"`
 	TraitAttributeIdentifier string   `json:"trait_attribute_identifier"`
 	TraitAttributeList       []string `json:"trait_attribute_list"`
-	LayerIds                 []int64  `json:"layer_ids"`
+	LayerIds                 []string `json:"layer_ids"`
 	LookupTag                string   `json:"lookup_tag"`
+	CaseInsensitiveMatching  bool     `json:"case_insensitive_matching"`
 }

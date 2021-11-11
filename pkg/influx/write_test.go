@@ -6,6 +6,7 @@ import (
 
 	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/max-bytes/metrics-receiver/pkg/general"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,7 +41,7 @@ func TestBuildPointsInflux(t *testing.T) {
 		},
 	}
 
-	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{})
+	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{}, logrus.StandardLogger())
 	assert.Nil(t, err)
 
 	rows, err := buildDBPointsInflux(preparedPointGroups, &cfg, nil)

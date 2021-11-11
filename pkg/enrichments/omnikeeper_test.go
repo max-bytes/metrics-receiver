@@ -11,8 +11,8 @@ func TestBasicEnrichment(t *testing.T) {
 
 	config := config.EnrichmentSet{
 		Name:                     "Test-Enrichmentset",
-		TraitName:                "Test-Traitname",
-		LayerIds:                 []int64{0, 1, 2},
+		TraitID:                  "Test-Traitname",
+		LayerIds:                 []string{"0", "1", "2"},
 		LookupTag:                "Test-Lookuptag",
 		TraitAttributeIdentifier: "Test-Lookupattribute",
 		TraitAttributeList:       []string{"test"},

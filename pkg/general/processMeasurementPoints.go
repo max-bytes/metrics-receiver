@@ -5,9 +5,10 @@ import (
 
 	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/max-bytes/metrics-receiver/pkg/enrichments"
+	"github.com/sirupsen/logrus"
 )
 
-func PreparePointGroups(i []PointGroup, cfg config.OutputConfig, enrichmentSets []config.EnrichmentSet) ([]PointGroup, error) {
+func PreparePointGroups(i []PointGroup, cfg config.OutputConfig, enrichmentSets []config.EnrichmentSet, log *logrus.Logger) ([]PointGroup, error) {
 	ret := make([]PointGroup, 0)
 	for _, input := range i {
 		var points = input.Points
@@ -28,6 +29,7 @@ func PreparePointGroups(i []PointGroup, cfg config.OutputConfig, enrichmentSets 
 			if enrichmentSetErr != nil {
 				return nil, fmt.Errorf("Unknown enrichment \"%s\" encountered", measurementConfig.GetEnrichment())
 			}
+			log.Debugf("Enriching points for measurement %s using enrichment set %s", measurement, enrichmentName)
 		}
 
 		// if this measurement should be ignored, continue with next point group

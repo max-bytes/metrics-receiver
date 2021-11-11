@@ -7,6 +7,7 @@ import (
 
 	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/max-bytes/metrics-receiver/pkg/general"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,7 +48,7 @@ func TestBuildDBRowsTimescale(t *testing.T) {
 		},
 	}
 
-	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{})
+	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{}, logrus.StandardLogger())
 	assert.Nil(t, err)
 
 	rows, err := buildDBRowsTimescale(preparedPointGroups, &cfg, nil)
@@ -154,7 +155,7 @@ func BenchmarkBuildDBRowsTimescale(b *testing.B) {
 
 	// for i := 0; i < 100; i++ {
 
-	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{})
+	preparedPointGroups, err := general.PreparePointGroups(pointGroups, &cfg, []config.EnrichmentSet{}, logrus.StandardLogger())
 	assert.Nil(b, err)
 
 	_, err = buildDBRowsTimescale(preparedPointGroups, &cfg, nil)

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/max-bytes/metrics-receiver/pkg/config"
-	okclient "github.com/max-bytes/omnikeeper-client-go"
+	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 )
 
@@ -26,7 +26,7 @@ func FetchEnrichments(cfg config.Enrichment) error {
 				enrichmentsCache.IsValid = false
 			}
 
-			return fmt.Errorf("Failed to get CIs for trait \"%s\": %w", enrichmentSet.TraitName, err)
+			return fmt.Errorf("Failed to get CIs for trait \"%s\": %w", enrichmentSet.TraitID, err)
 		} else {
 			enrichmentsCache.RetryCount = 0
 			enrichmentsCache.IsValid = true
@@ -50,16 +50,21 @@ func FindEnrichmentSetByName(name string, enrichmentSets []config.EnrichmentSet)
 	return nil, errors.New(err)
 }
 
-func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichmentSet config.EnrichmentSet) {
-
+func updateEnrichmentCache(result *ETQuery, enrichmentSet config.EnrichmentSet) {
 	var enrichmentItems = map[string]map[string]string{}
-	for _, value := range result {
+	for _, value := range result.EffectiveTraitsForTrait {
 		item := make(map[string]string)
-		for traitAttributeIdentifier, v := range value.TraitAttributes {
-			if !v.Value.IsArray {
-				item[traitAttributeIdentifier] = v.Value.Values[0]
+		for _, v := range value.TraitAttributes {
+			values := v.MergedAttribute.Attribute.Value.Values
+			identifier := string(v.Identifier)
+			if !v.MergedAttribute.Attribute.Value.IsArray {
+				item[identifier] = string(values[0])
 			} else {
-				item[traitAttributeIdentifier] = strings.Join(v.Value.Values[:], ",")
+				valuesStr := make([]string, len(values))
+				for i, v := range values {
+					valuesStr[i] = string(v)
+				}
+				item[identifier] = strings.Join(valuesStr, ",")
 			}
 		}
 		lookupAttribute := enrichmentSet.TraitAttributeIdentifier
@@ -67,6 +72,9 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichm
 			continue // we cannot use a CI which does not contain the lookup attribute
 		}
 		lookupAttributeValue := item[lookupAttribute]
+		if enrichmentSet.CaseInsensitiveMatching {
+			lookupAttributeValue = strings.ToLower(lookupAttributeValue)
+		}
 
 		// filter item map based on enrichmentSet.TraitAttributeList
 		// this can also be used to delete the lookup attribute by not specifying it
@@ -84,7 +92,7 @@ func updateEnrichmentCache(result map[string]okclient.EffectiveTraitDTO, enrichm
 	enrichmentsCache.CacheLock.Unlock()
 }
 
-func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.Enrichment) (map[string]okclient.EffectiveTraitDTO, error) {
+func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.Enrichment) (*ETQuery, error) {
 
 	oauth2cfg := &oauth2.Config{
 		ClientID: cfgFull.ClientID,
@@ -101,19 +109,41 @@ func getCisByTrait(cfg config.EnrichmentSet, cfgFull config.Enrichment) (map[str
 		return nil, tokenErr
 	}
 
-	configuration := okclient.NewConfiguration()
-	configuration.Servers[0].URL = cfgFull.ServerURL
-	api_client := okclient.NewAPIClient(configuration)
-
 	tokenSource := oauth2cfg.TokenSource(ctx, token)
-	auth := context.WithValue(ctx, okclient.ContextOAuth2, tokenSource)
-	resp, _, err := api_client.TraitApi.GetEffectiveTraitsForTraitName(auth, apiVersion).LayerIDs(cfg.LayerIds).TraitName(cfg.TraitName).Execute()
+	httpClient := oauth2.NewClient(context.Background(), tokenSource)
+	client := graphql.NewClient(cfgFull.ServerURL, httpClient)
 
+	var query = ETQuery{}
+	layers := make([]graphql.String, len(cfg.LayerIds))
+	for i, v := range cfg.LayerIds {
+		layers[i] = graphql.String(v)
+	}
+	variables := map[string]interface{}{
+		"traitID": graphql.String(cfg.TraitID),
+		"layers":  layers,
+	}
+	err := client.Query(context.Background(), &query, variables)
 	if err != nil {
 		return nil, err
 	}
 
-	return resp, nil
+	return &query, nil
+}
+
+type ETQuery struct {
+	EffectiveTraitsForTrait []struct {
+		TraitAttributes []struct {
+			Identifier      graphql.String
+			MergedAttribute struct {
+				Attribute struct {
+					Value struct {
+						IsArray graphql.Boolean
+						Values  []graphql.String
+					}
+				}
+			}
+		}
+	} `graphql:"effectiveTraitsForTrait(traitID: $traitID, layers: $layers)"`
 }
 
 func EnrichTags(tags map[string]string, enrichmentSet *config.EnrichmentSet) (map[string]string, error) {
@@ -123,9 +153,12 @@ func EnrichTags(tags map[string]string, enrichmentSet *config.EnrichmentSet) (ma
 
 	if lookupTagValue, ok := tags[enrichmentSet.LookupTag]; ok {
 		var tagsCopy map[string]string = make(map[string]string)
-
 		for k, v := range tags {
 			tagsCopy[k] = v
+		}
+
+		if enrichmentSet.CaseInsensitiveMatching {
+			lookupTagValue = strings.ToLower(lookupTagValue)
 		}
 
 		enrichmentsCache.CacheLock.RLock()

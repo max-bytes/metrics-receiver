@@ -22,6 +22,7 @@ import (
 var (
 	version    = "0.0.0-src"
 	configFile = flag.String("config", "config.json", "Config file location")
+	log        logrus.Logger
 )
 
 // default configuration
@@ -46,54 +47,56 @@ var internalMetrics struct {
 }
 
 func init() {
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	logrus.SetLevel(logrus.TraceLevel) // is overwritten by configuration below
+	log = *logrus.StandardLogger()
+	log.SetFormatter(&logrus.JSONFormatter{})
+	log.SetLevel(logrus.TraceLevel) // is overwritten by configuration below
 }
 
 func main() {
 
-	logrus.Infof("metrics-receiver (Version: %s)", version)
+	log.Infof("metrics-receiver (Version: %s)", version)
 
 	flag.Parse()
 
-	logrus.Infof("Loading config from file: %s", *configFile)
+	log.Infof("Loading config from file: %s", *configFile)
 	err := config.ReadConfigFromFile(*configFile, &cfg)
 	if err != nil {
-		logrus.Fatalf("Error opening config file: %s", err)
+		log.Fatalf("Error opening config file: %s", err)
 	}
 
 	parsedLogLevel, err := logrus.ParseLevel(cfg.LogLevel)
 	if err != nil {
-		logrus.Fatalf("Error parsing loglevel in config file: %s", err)
+		log.Fatalf("Error parsing loglevel in config file: %s", err)
 	}
-	logrus.SetLevel(parsedLogLevel)
+	log.SetLevel(parsedLogLevel)
 
 	if cfg.Enrichment.CollectInterval > 0 {
-		logrus.Infof("Started fetching enrichments...")
+		log.Infof("Started fetching enrichments...")
 		err := enrichments.FetchEnrichments(cfg.Enrichment)
 		if err != nil {
-			logrus.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
+			log.Fatalf("Error trying to fetch data from omnikeeper: %s", err)
 		} else {
-			logrus.Debug("Fetched enrichments")
+			log.Debug("Fetched enrichments")
 		}
 
 		go func() {
 			for range time.Tick(time.Duration(cfg.Enrichment.CollectInterval * int(time.Second))) {
+				log.Debug("Fetching enrichments")
 				err := enrichments.FetchEnrichments(cfg.Enrichment)
 				if err != nil {
-					logrus.Errorf("Error trying to update enrichment cache: %s", err)
+					log.Errorf("Error trying to update enrichment cache: %s", err)
 				} else {
-					logrus.Debug("Fetched enrichments")
+					log.Debug("Fetched enrichments")
 				}
 			}
 		}()
 	} else {
-		logrus.Infof("Not enriching metrics due to configuration")
+		log.Infof("Not enriching metrics due to configuration")
 	}
 
 	if cfg.InternalMetricsCollectInterval > 0 && cfg.InternalMetricsFlushCycle > 0 {
 		go func() {
-			logrus.Infof("Started collecting internal metrics...")
+			log.Infof("Started collecting internal metrics...")
 			for now := range time.Tick(time.Duration(cfg.InternalMetricsCollectInterval * int(time.Second))) {
 				internalMetrics.internalMetricsLock.Lock()
 
@@ -114,24 +117,24 @@ func main() {
 				internalMetrics.incomingBytesCount = 0
 
 				internalMetrics.internalMetricsLock.Unlock()
-				logrus.Debugf("Collected internal metrics")
+				log.Debugf("Collected internal metrics")
 			}
 		}()
 
 		go func() {
-			logrus.Infof("Started sending internal metrics...")
+			log.Infof("Started sending internal metrics...")
 			for range time.Tick(time.Duration(cfg.InternalMetricsFlushCycle * int(time.Second))) {
 				internalMetrics.internalMetricsLock.Lock()
 
 				// NOTE: we can't really treat critical errors different here, so we just log the error in both cases
 				criticalError, nonCriticalErrors := writeOutputs(internalMetrics.incomingMetrics)
 				for _, nonCriticalError := range nonCriticalErrors {
-					logrus.Warnf("Non-critical error writing internal metrics: %v", nonCriticalError)
+					log.Warnf("Non-critical error writing internal metrics: %v", nonCriticalError)
 				}
 				if criticalError != nil {
-					logrus.Errorf("Critical error writing internal metrics: %v", criticalError)
+					log.Errorf("Critical error writing internal metrics: %v", criticalError)
 				} else {
-					logrus.Debugf("Sent internal metrics")
+					log.Debugf("Sent internal metrics")
 				}
 
 				internalMetrics.incomingMetrics = make([]general.Point, 0)
@@ -139,7 +142,7 @@ func main() {
 			}
 		}()
 	} else {
-		logrus.Infof("Not collecting or sending any internal metrics due to configuration")
+		log.Infof("Not collecting or sending any internal metrics due to configuration")
 	}
 
 	http.HandleFunc("/api/influx/v1/write", influxWriteHandler)
@@ -148,16 +151,16 @@ func main() {
 	http.HandleFunc("/api/enrichment/cacheinfo", enrichmentCacheInfoHandler)
 	http.HandleFunc("/api/enrichment/cacheinfo/items", enrichmentCacheItemsInfoHandler)
 
-	logrus.Infof("Starting server at port %d\n", cfg.Port)
+	log.Infof("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
-		logrus.Fatalf("Error opening config file: %s", err)
+		log.Fatalf("Error opening config file: %s", err)
 	}
 }
 
 // POST /influx/v1/write
 func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
-	logrus.Infof("Receiving influx write request...")
+	log.Infof("Receiving influx write request...")
 
 	if r.Method != "POST" {
 		http.Error(w, "Method is not supported.", http.StatusForbidden)
@@ -171,7 +174,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	case "gzip":
 		reader, err = gzip.NewReader(r.Body)
 		if err != nil {
-			logrus.Errorf(err.Error())
+			log.Errorf(err.Error())
 			http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
 			return
 		}
@@ -183,7 +186,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(reader)
 
 	if err != nil {
-		logrus.Errorf(err.Error())
+		log.Errorf(err.Error())
 		http.Error(w, "An error ocurred while trying to read the request body!", http.StatusBadRequest)
 		return
 	}
@@ -192,7 +195,7 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	points, parseErr := influx.Parse(requestStr, time.Now())
 	if parseErr != nil {
-		logrus.Errorf("An error occurred while parsing the influx line protocol request: " + parseErr.Error())
+		log.Errorf("An error occurred while parsing the influx line protocol request: " + parseErr.Error())
 		http.Error(w, "An error occurred while parsing the influx line protocol request", http.StatusBadRequest)
 		return
 	}
@@ -205,15 +208,15 @@ func influxWriteHandler(w http.ResponseWriter, r *http.Request) {
 
 	criticalError, nonCriticalErrors := writeOutputs(points)
 	if criticalError != nil {
-		logrus.Errorf(criticalError.Error())
+		log.Errorf(criticalError.Error())
 		http.Error(w, criticalError.Error(), http.StatusBadRequest)
 		return
 	} else {
 		for _, nonCriticalError := range nonCriticalErrors {
-			logrus.Warnf(nonCriticalError.Error())
+			log.Warnf(nonCriticalError.Error())
 		}
 
-		logrus.Printf("Successfully processed influx write request; lines: %d \n", len(points))
+		log.Printf("Successfully processed influx write request; lines: %d \n", len(points))
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -224,7 +227,7 @@ func writeOutputs(points []general.Point) (error, []error) {
 
 	// timescaledb outputs
 	for _, outputConfig := range cfg.OutputsTimescale {
-		preparedPoints, err := general.PreparePointGroups(pointGroups, &outputConfig, cfg.Enrichment.Sets)
+		preparedPoints, err := general.PreparePointGroups(pointGroups, &outputConfig, cfg.Enrichment.Sets, &log)
 		if err != nil {
 			if outputConfig.WriteStrategy == "commit" {
 				return fmt.Errorf("An error occurred preparing timescaleDB output: %w", err), nonCriticalErrors
@@ -246,7 +249,7 @@ func writeOutputs(points []general.Point) (error, []error) {
 
 	// influxdb outputs
 	for _, outputConfig := range cfg.OutputsInflux {
-		preparedPoints, err := general.PreparePointGroups(pointGroups, &outputConfig, cfg.Enrichment.Sets)
+		preparedPoints, err := general.PreparePointGroups(pointGroups, &outputConfig, cfg.Enrichment.Sets, &log)
 		if err != nil {
 			if outputConfig.WriteStrategy == "commit" {
 				return fmt.Errorf("An error occurred preparing influxDB output: %w", err), nonCriticalErrors

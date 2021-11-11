@@ -9,18 +9,19 @@
         "collect_interval": 60,
         "username": "omnikeeper-client-library-test",
         "password": "omnikeeper-client-library-test",
-        "server_url": "https://10.0.0.43:45455",
+        "server_url": "https://10.0.0.43:45455/graphql",
         "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
         "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
         "client_id": "landscape-omnikeeper",
 		"sets": [
 			{
-				"name": "tss_ciids",
-				"trait_name": "tsa_tss_mapping",
-				"trait_attribute_identifier": "ciid_swiss",
-                "trait_attribute_list": ["ciid"],
-				"layer_ids": [6],
-				"lookup_tag": "ciid"
+				"name": "tsa_cmdb_bmc_sap_mapping",
+				"trait_id": "metrics_receiver.bmc_instance_lookup",
+				"trait_attribute_identifier": "bmc_instance",
+                "trait_attribute_list": ["cmdb_id", "cmdb_name"],
+				"layer_ids": ["tsa_cmdb"],
+				"lookup_tag": "instance",
+                "case_insensitive_matching": true
 			}
 		]
     },
@@ -33,14 +34,18 @@
         "write_strategy": "commit",
         "connection": "host=localhost port=55432 dbname=metrics user=postgres password=password sslmode=disable",
         "measurements": {
+            "sap_bmc": {
+                "enrichment" : "tsa_cmdb_bmc_sap_mapping",
+                "fieldsAsColumns": ["value"],
+                "tagsAsColumns": ["hostname", "application", "instance", "parameter", "cmdb_id"],
+                "targetTable": "sap_bmc"
+            },
             "metric": {
-                "enrichment": "tss_ciids",
                 "fieldsAsColumns": ["value", "warn", "crit", "min", "max"],
                 "tagsAsColumns": ["host", "service", "label", "uom", "ciname", "ciid", "monitoringprofile", "customer"],
                 "targetTable": "metric"
             },
             "state": {
-                "enrichment": "tss_ciids",
                 "fieldsAsColumns": ["value"],
                 "tagsAsColumns": ["host", "service", "ciname", "ciid", "monitoringprofile", "customer"],
                 "targetTable": "state"
