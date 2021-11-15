@@ -35,10 +35,16 @@ func InitConnPools(cfg []config.OutputTimescale) error {
 		timescalePools[output.Connection] = timescaleDbPool
 
 		// to close DB pool
-		defer timescaleDbPool.Close()
+		// defer timescaleDbPool.Close()
 	}
 
 	return nil
+}
+
+func CloseConnectionPools() {
+	for _, dbPool := range timescalePools {
+		dbPool.Close()
+	}
 }
 
 func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) error {

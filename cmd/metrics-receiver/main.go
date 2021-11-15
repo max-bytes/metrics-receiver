@@ -46,8 +46,6 @@ var internalMetrics struct {
 	internalMetricsLock sync.Mutex
 }
 
-// var dbPool *pgx.Conn
-
 func init() {
 	log = *logrus.StandardLogger()
 	log.SetFormatter(&logrus.JSONFormatter{})
@@ -162,7 +160,7 @@ func main() {
 
 	log.Infof("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
-		log.Fatalf("Error opening config file: %s", err)
+		log.Fatalf("Error starting metrics-receiver: %s", err)
 	}
 }
 
