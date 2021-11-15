@@ -1,14 +1,45 @@
 package timescale
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/max-bytes/metrics-receiver/pkg/general"
 )
+
+var timescalePools map[string]*pgxpool.Pool
+
+func InitConnPools(cfg []config.OutputTimescale) error {
+
+	timescalePools = make(map[string]*pgxpool.Pool)
+
+	for _, output := range cfg {
+
+		c, errC := pgxpool.ParseConfig(output.Connection)
+
+		if errC != nil {
+			return fmt.Errorf("Unable to parse config for timescale database: %v\n", errC)
+		}
+
+		timescaleDbPool, err := pgxpool.ConnectConfig(context.Background(), c)
+
+		if err != nil {
+			return fmt.Errorf("Unable to connect to timescale database database: %v\n", err)
+		}
+
+		timescalePools[output.Connection] = timescaleDbPool
+
+		// to close DB pool
+		defer timescaleDbPool.Close()
+	}
+
+	return nil
+}
 
 func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) error {
 	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSets)
@@ -112,6 +143,35 @@ func contains(s []string, e string) bool {
 }
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
+
+	dbPool := timescalePools[config.Connection]
+
+	tx, beginErr := dbPool.Begin(context.Background())
+	if beginErr != nil {
+		return beginErr
+	}
+	defer tx.Rollback(context.Background()) //nolint: errcheck
+
+	for _, rows := range rowsArray {
+
+		copyCount, err := dbPool.CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		if err != nil {
+			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
+		}
+		if int(copyCount) != len(rows.InsertRows) {
+			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
+		}
+	}
+
+	err := tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func insertRowsTimescaleOld(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 	var c, parseErr = pgx.ParseConnectionString(config.Connection)
 	if parseErr != nil {
 		return parseErr

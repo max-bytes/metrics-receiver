@@ -21,7 +21,7 @@ import (
 
 var (
 	version    = "0.0.0-src"
-	configFile = flag.String("config", "config.json", "Config file location")
+	configFile = flag.String("config", "C:\\Users\\MuhametKaçuri\\repos\\metrics-receiver-ng\\config-example.json", "Config file location")
 	log        logrus.Logger
 )
 
@@ -46,6 +46,8 @@ var internalMetrics struct {
 	internalMetricsLock sync.Mutex
 }
 
+// var dbPool *pgx.Conn
+
 func init() {
 	log = *logrus.StandardLogger()
 	log.SetFormatter(&logrus.JSONFormatter{})
@@ -69,6 +71,13 @@ func main() {
 		log.Fatalf("Error parsing loglevel in config file: %s", err)
 	}
 	log.SetLevel(parsedLogLevel)
+
+	// init timescale connection pools
+	connPoolsErr := timescale.InitConnPools(cfg.OutputsTimescale)
+
+	if connPoolsErr != nil {
+		log.Fatalf("Failed to init connection pools for timecaledb: %s", connPoolsErr)
+	}
 
 	if cfg.Enrichment.CollectInterval > 0 {
 		log.Infof("Started fetching enrichments...")
@@ -237,6 +246,7 @@ func writeOutputs(points []general.Point) (error, []error) {
 			}
 		}
 
+		// add connection pool here
 		err = timescale.Write(preparedPoints, &outputConfig, cfg.Enrichment.Sets)
 		if err != nil {
 			if outputConfig.WriteStrategy == "commit" {
