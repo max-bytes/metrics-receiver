@@ -22,6 +22,8 @@ func InitConnPools(cfg []config.OutputTimescale) error {
 
 		c, errC := pgxpool.ParseConfig(output.Connection)
 
+		// c.MaxConns = 20
+
 		if errC != nil {
 			return fmt.Errorf("Unable to parse config for timescale database: %v\n", errC)
 		}
@@ -150,9 +152,46 @@ func contains(s []string, e string) bool {
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 
-	dbPool := timescalePools[config.Connection]
+	var conn, connErr = timescalePools[config.Connection].Acquire(context.Background())
 
-	tx, beginErr := dbPool.Begin(context.Background())
+	if connErr != nil {
+		return connErr
+	}
+
+	tx, beginErr := conn.Begin(context.Background())
+	if beginErr != nil {
+		return beginErr
+	}
+	defer tx.Rollback(context.Background()) //nolint: errcheck
+
+	for _, rows := range rowsArray {
+		copyCount, copyErr := tx.CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		if copyErr != nil {
+			return fmt.Errorf("Unexpected error for CopyFrom: %v", copyErr)
+		}
+
+		if int(copyCount) != len(rows.InsertRows) {
+			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
+		}
+	}
+
+	err := tx.Commit(context.Background())
+	if err != nil {
+		return err
+	}
+
+	conn.Release()
+
+	return nil
+}
+
+func insertRowsTimescale2(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
+
+	// dbPool := timescalePools[config.Connection]
+
+	// var conn, e = timescalePools[config.Connection].Acquire(context.Background())
+
+	tx, beginErr := timescalePools[config.Connection].Begin(context.Background())
 	if beginErr != nil {
 		return beginErr
 	}
@@ -160,7 +199,7 @@ func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimesca
 
 	for _, rows := range rowsArray {
 
-		copyCount, err := dbPool.CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		copyCount, err := timescalePools[config.Connection].CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
 		if err != nil {
 			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
 		}
