@@ -22,8 +22,6 @@ func InitConnPools(cfg []config.OutputTimescale) error {
 
 		c, errC := pgxpool.ParseConfig(output.Connection)
 
-		// c.MaxConns = 20
-
 		if errC != nil {
 			return fmt.Errorf("Unable to parse config for timescale database: %v\n", errC)
 		}
@@ -36,8 +34,6 @@ func InitConnPools(cfg []config.OutputTimescale) error {
 
 		timescalePools[output.Connection] = timescaleDbPool
 
-		// to close DB pool
-		// defer timescaleDbPool.Close()
 	}
 
 	return nil
@@ -152,7 +148,7 @@ func contains(s []string, e string) bool {
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 
-	var conn, connErr = timescalePools[config.Connection].Acquire(context.Background())
+	conn, connErr := timescalePools[config.Connection].Acquire(context.Background())
 
 	if connErr != nil {
 		return connErr
@@ -181,74 +177,6 @@ func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimesca
 	}
 
 	conn.Release()
-
-	return nil
-}
-
-func insertRowsTimescale2(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
-
-	// dbPool := timescalePools[config.Connection]
-
-	// var conn, e = timescalePools[config.Connection].Acquire(context.Background())
-
-	tx, beginErr := timescalePools[config.Connection].Begin(context.Background())
-	if beginErr != nil {
-		return beginErr
-	}
-	defer tx.Rollback(context.Background()) //nolint: errcheck
-
-	for _, rows := range rowsArray {
-
-		copyCount, err := timescalePools[config.Connection].CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
-		if err != nil {
-			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
-		}
-		if int(copyCount) != len(rows.InsertRows) {
-			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
-		}
-	}
-
-	err := tx.Commit(context.Background())
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func insertRowsTimescaleOld(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
-	var c, parseErr = pgx.ParseConnectionString(config.Connection)
-	if parseErr != nil {
-		return parseErr
-	}
-
-	conn, connErr := pgx.Connect(c)
-	if connErr != nil {
-		return connErr
-	}
-	defer conn.Close()
-
-	tx, beginErr := conn.Begin()
-	if beginErr != nil {
-		return beginErr
-	}
-	defer tx.Rollback() //nolint: errcheck
-
-	for _, rows := range rowsArray {
-
-		copyCount, err := conn.CopyFrom(pgx.Identifier{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
-		if err != nil {
-			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
-		}
-		if int(copyCount) != len(rows.InsertRows) {
-			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
-		}
-	}
-
-	err := tx.Commit()
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

@@ -8,10 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/max-bytes/metrics-receiver/pkg/config"
@@ -161,17 +158,10 @@ func main() {
 	http.HandleFunc("/api/enrichment/cacheinfo", enrichmentCacheInfoHandler)
 	http.HandleFunc("/api/enrichment/cacheinfo/items", enrichmentCacheItemsInfoHandler)
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-
 	log.Infof("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
 		log.Fatalf("Error starting metrics-receiver: %s", err)
 	}
-
-	<-done
-	timescale.CloseConnectionPools()
-	fmt.Println("closed connection pools")
 }
 
 // POST /influx/v1/write
