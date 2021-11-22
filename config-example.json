@@ -19,7 +19,7 @@
 				"trait_id": "metrics_receiver.bmc_instance_lookup",
 				"trait_attribute_identifier": "bmc_instance",
                 "trait_attribute_list": ["cmdb_id", "cmdb_name"],
-				"layer_ids": ["tsa_cmdb"],
+				"layer_ids": ["bmc_instance_lookup_override", "tsa_cmdb"],
 				"lookup_tag": "instance",
                 "case_insensitive_matching": true
 			}
