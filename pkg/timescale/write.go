@@ -148,35 +148,43 @@ func contains(s []string, e string) bool {
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 
-	conn, connErr := timescalePools[config.Connection].Acquire(context.Background())
+	ctx := context.TODO()
+
+	conn, connErr := timescalePools[config.Connection].Acquire(ctx)
 
 	if connErr != nil {
 		return connErr
 	}
 
-	tx, beginErr := conn.Begin(context.Background())
+	defer conn.Release()
+
+	tx, beginErr := conn.Begin(ctx)
 	if beginErr != nil {
 		return beginErr
 	}
-	defer tx.Rollback(context.Background()) //nolint: errcheck
 
 	for _, rows := range rowsArray {
-		copyCount, copyErr := tx.CopyFrom(context.Background(), []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		copyCount, copyErr := tx.CopyFrom(ctx, []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
 		if copyErr != nil {
+
+			if e, ok := copyErr.(pgx.PgError); ok {
+				_ = tx.Rollback(ctx)
+				return fmt.Errorf("%v", e.Code)
+			}
+
 			return fmt.Errorf("Unexpected error for CopyFrom: %v", copyErr)
 		}
 
 		if int(copyCount) != len(rows.InsertRows) {
+			_ = tx.Rollback(ctx)
 			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
 		}
 	}
 
-	err := tx.Commit(context.Background())
+	err := tx.Commit(ctx)
 	if err != nil {
 		return err
 	}
-
-	conn.Release()
 
 	return nil
 }
