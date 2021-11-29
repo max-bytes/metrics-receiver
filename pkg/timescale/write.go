@@ -148,7 +148,7 @@ func contains(s []string, e string) bool {
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
 
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	conn, connErr := timescalePools[config.Connection].Acquire(ctx)
 
