@@ -21,7 +21,7 @@ import (
 
 var (
 	version    = "0.0.0-src"
-	configFile = flag.String("config", "config.json", "Config file location")
+	configFile = flag.String("config", "config-example.json", "Config file location")
 	log        logrus.Logger
 )
 
@@ -69,6 +69,15 @@ func main() {
 		log.Fatalf("Error parsing loglevel in config file: %s", err)
 	}
 	log.SetLevel(parsedLogLevel)
+
+	// init timescale connection pools
+	connPoolsErr := timescale.InitConnPools(cfg.OutputsTimescale)
+
+	if connPoolsErr != nil {
+		log.Fatalf("Failed to init connection pools for timecaledb: %s", connPoolsErr)
+	}
+
+	defer timescale.CloseConnectionPools()
 
 	if cfg.Enrichment.CollectInterval > 0 {
 		log.Infof("Started fetching enrichments...")
@@ -153,7 +162,7 @@ func main() {
 
 	log.Infof("Starting server at port %d\n", cfg.Port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil); err != nil {
-		log.Fatalf("Error opening config file: %s", err)
+		log.Fatalf("Error starting metrics-receiver: %s", err)
 	}
 }
 
@@ -237,6 +246,7 @@ func writeOutputs(points []general.Point) (error, []error) {
 			}
 		}
 
+		// add connection pool here
 		err = timescale.Write(preparedPoints, &outputConfig, cfg.Enrichment.Sets)
 		if err != nil {
 			if outputConfig.WriteStrategy == "commit" {

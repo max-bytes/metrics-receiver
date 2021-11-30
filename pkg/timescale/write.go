@@ -1,14 +1,49 @@
 package timescale
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/max-bytes/metrics-receiver/pkg/config"
 	"github.com/max-bytes/metrics-receiver/pkg/general"
 )
+
+var timescalePools map[string]*pgxpool.Pool
+
+func InitConnPools(cfg []config.OutputTimescale) error {
+
+	timescalePools = make(map[string]*pgxpool.Pool)
+
+	for _, output := range cfg {
+
+		c, errC := pgxpool.ParseConfig(output.Connection)
+
+		if errC != nil {
+			return fmt.Errorf("Unable to parse config for timescale database: %v\n", errC)
+		}
+
+		timescaleDbPool, err := pgxpool.ConnectConfig(context.Background(), c)
+
+		if err != nil {
+			return fmt.Errorf("Unable to connect to timescale database database: %v\n", err)
+		}
+
+		timescalePools[output.Connection] = timescaleDbPool
+
+	}
+
+	return nil
+}
+
+func CloseConnectionPools() {
+	for _, dbPool := range timescalePools {
+		dbPool.Close()
+	}
+}
 
 func Write(groupedPoints []general.PointGroup, cfg *config.OutputTimescale, enrichmentSets []config.EnrichmentSet) error {
 	var rows, buildDBRowsErr = buildDBRowsTimescale(groupedPoints, cfg, enrichmentSets)
@@ -112,35 +147,40 @@ func contains(s []string, e string) bool {
 }
 
 func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimescale) error {
-	var c, parseErr = pgx.ParseConnectionString(config.Connection)
-	if parseErr != nil {
-		return parseErr
-	}
 
-	conn, connErr := pgx.Connect(c)
+	ctx := context.Background()
+
+	conn, connErr := timescalePools[config.Connection].Acquire(ctx)
+
 	if connErr != nil {
 		return connErr
 	}
-	defer conn.Close()
 
-	tx, beginErr := conn.Begin()
+	defer conn.Release()
+
+	tx, beginErr := conn.Begin(ctx)
 	if beginErr != nil {
 		return beginErr
 	}
-	defer tx.Rollback() //nolint: errcheck
+	defer tx.Rollback(ctx) //nolint: errcheck
 
 	for _, rows := range rowsArray {
+		copyCount, copyErr := tx.CopyFrom(ctx, []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
+		if copyErr != nil {
 
-		copyCount, err := conn.CopyFrom(pgx.Identifier{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
-		if err != nil {
-			return fmt.Errorf("Unexpected error for CopyFrom: %v", err)
+			if e, ok := copyErr.(pgx.PgError); ok {
+				return fmt.Errorf("%v", e.Code)
+			}
+
+			return fmt.Errorf("Unexpected error for CopyFrom: %v", copyErr)
 		}
+
 		if int(copyCount) != len(rows.InsertRows) {
 			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
 		}
 	}
 
-	err := tx.Commit()
+	err := tx.Commit(ctx)
 	if err != nil {
 		return err
 	}
