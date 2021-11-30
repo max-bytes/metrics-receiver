@@ -21,7 +21,7 @@ import (
 
 var (
 	version    = "0.0.0-src"
-	configFile = flag.String("config", "config-example.json", "Config file location")
+	configFile = flag.String("config", "config.json", "Config file location")
 	log        logrus.Logger
 )
 
