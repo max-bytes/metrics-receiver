@@ -162,13 +162,13 @@ func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimesca
 	if beginErr != nil {
 		return beginErr
 	}
+	defer tx.Rollback(ctx) //nolint: errcheck
 
 	for _, rows := range rowsArray {
 		copyCount, copyErr := tx.CopyFrom(ctx, []string{rows.TargetTable}, rows.InsertColumns, pgx.CopyFromRows(rows.InsertRows))
 		if copyErr != nil {
 
 			if e, ok := copyErr.(pgx.PgError); ok {
-				_ = tx.Rollback(ctx)
 				return fmt.Errorf("%v", e.Code)
 			}
 
@@ -176,7 +176,6 @@ func insertRowsTimescale(rowsArray []TimescaleRows, config *config.OutputTimesca
 		}
 
 		if int(copyCount) != len(rows.InsertRows) {
-			_ = tx.Rollback(ctx)
 			return fmt.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(rows.InsertRows), copyCount)
 		}
 	}
