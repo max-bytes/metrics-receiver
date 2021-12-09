@@ -294,12 +294,14 @@ func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !enrichments.GetEnrichmentCache().IsValid {
+	checkEnrichments := cfg.Enrichment.CollectInterval > 0
+	if checkEnrichments && !enrichments.GetEnrichmentCache().IsValid {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		io.WriteString(w, "Invalid enrichment cache")
-	} else {
-		w.WriteHeader(http.StatusOK)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // GET /api/enrichment/cacheinfo
