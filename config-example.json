@@ -15,11 +15,11 @@
         "client_id": "landscape-omnikeeper",
 		"sets": [
 			{
-				"name": "tsa_cmdb_bmc_sap_mapping",
+				"name": "test",
 				"trait_id": "metrics_receiver.bmc_instance_lookup",
 				"trait_attribute_identifier": "bmc_instance",
                 "trait_attribute_list": ["cmdb_id", "cmdb_name"],
-				"layer_ids": ["bmc_instance_lookup_override", "tsa_cmdb"],
+				"layer_ids": ["bmc_instance_lookup_override"],
 				"lookup_tag": "instance",
                 "case_insensitive_matching": true
 			}
@@ -35,7 +35,7 @@
         "connection": "host=localhost port=55432 dbname=metrics user=postgres password=password sslmode=disable",
         "measurements": {
             "sap_bmc": {
-                "enrichment" : "tsa_cmdb_bmc_sap_mapping",
+                "enrichment" : "test",
                 "fieldsAsColumns": ["value"],
                 "tagsAsColumns": ["hostname", "application", "instance", "parameter", "cmdb_id"],
                 "targetTable": "sap_bmc"
