@@ -7,11 +7,11 @@
     "enrichment": {
         "retry_count": 6,
         "collect_interval": 60,
-        "username": "omnikeeper-client-library-test",
-        "password": "omnikeeper-client-library-test",
+        "username": "username",
+        "password": "password",
         "server_url": "https://10.0.0.43:45455/graphql",
-        "auth_url":  "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/auth",
-        "token_url": "https://auth-dev.mhx.at/auth/realms/acme/protocol/openid-connect/token",
+        "auth_url":  "https://example.com/auth/realms/acme/protocol/openid-connect/auth",
+        "token_url": "https://example.com/auth/realms/acme/protocol/openid-connect/token",
         "client_id": "landscape-omnikeeper",
 		"sets": [
 			{
